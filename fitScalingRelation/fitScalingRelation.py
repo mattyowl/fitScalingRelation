@@ -1,6 +1,23 @@
-#!/usr/bin/env python
+"""
 
-"""The orthogonal fitting code used in the 2012 L-T paper, in a more general purpose form.
+    The MCMC fitting code used in Hilton et al. (2012), in a more general purpose form
+
+    Copyright 2015 Matt Hilton (matt.hilton@mykolab.com)
+    
+    This file is part of fitScalingRelation.
+
+    fitScalingRelation is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    fitScalingRelation is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with fitScalingRelation.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
@@ -18,7 +35,7 @@ from scipy import special
 from scipy import interpolate
 from scipy import ndimage
 import pyximport; pyximport.install()
-import cythonOrthogonal as ortho
+import cythonScalingRelation as csr
 import time
 import pickle
 import matplotlib
@@ -28,12 +45,12 @@ plt.matplotlib.interactive(False)
 
 #-------------------------------------------------------------------------------------------------------------
 # Adopt Ed's cosmology
-astCalc.OMEGA_M0=0.27
-astCalc.OMEGA_L=0.73
+#astCalc.OMEGA_M0=0.27
+#astCalc.OMEGA_L=0.73
     
 #-------------------------------------------------------------------------------------------------------------
 def ask_for( key ):
-    s = raw_input( "ACTDict: enter value for '%s': " % key )
+    s = raw_input( "ParametersDict: enter value for '%s': " % key )
     try:
         val = eval(s)
     except NameError:
@@ -60,19 +77,22 @@ class ParametersDict( dict ):
                 continue
             s = line.split('#')
             line = s[0]
-            #s = line.split('\\')
-            #if len(s) > 1:
-                #old = string.join([old, s[0]])
-                #continue
-            #else:
-                #line = string.join([old, s[0]])
-                #old = ''
+            #if line[-1] == '\\':
+                #s = line.split('\\')
+                #if len(s) > 1:
+                    #old = string.join([old, s[0]])
+                    #continue
+                #else:
+                    #line = string.join([old, s[0]])
+                    #old = ''
+                ##IPython.embed()
+                ##sys.exit()
             s = line.split('=')
             if len(s) != 2:
-                IPython.embed()
-                sys.exit()
                 print "Error parsing line:"
                 print line
+                IPython.embed()
+                sys.exit()
                 continue
             try:
                 key = s[0].strip()
@@ -103,36 +123,6 @@ class ParametersDict( dict ):
             except KeyError:
                 diff += [k]
         return otherDict
-
-#-------------------------------------------------------------------------------------------------------------
-def BCESLTFit(logT, logL, logTErr, logLErr):
-    """Wrapper that runs my BCES C-code and parses result. This does not do anything to the data, it merely
-    looks for columns in tab called 'log10L', 'log10T', 'log10TErr', 'log10LErr'.
-    
-    This is for checking out how the fitting works on sim samples, to make sure we're not doing something
-    dumb.
-    
-    So no pivotT here.
-        
-    """
-            
-    outFile=file("BCES.in", "w")
-    for l, t, le, te in zip(logL, logT, logLErr, logTErr):
-        outFile.write("%6f,%.6f,%.6f,%.6f\n" % (t, l, te, le))
-    outFile.close()
-    
-    # Run BCES
-    stdout, stdin=popen2.popen2("bces BCES.in")
-    resultString=stdout.readline()
-    bits=resultString.split()
-    slope, slopeErr=bits[1].split("+/-")
-    intercept, interceptErr=bits[3].split("+/-")
-    slope=float(slope)
-    slopeErr=float(slopeErr)
-    intercept=float(intercept)
-    interceptErr=float(interceptErr)
-    
-    return {'slope': slope, 'slopeErr': slopeErr, 'intercept': intercept, 'interceptErr': interceptErr}
 
 #-------------------------------------------------------------------------------------------------------------
 def selectStartParsFromPriors(settingsDict):
@@ -238,17 +228,17 @@ def sampleGetter(settingsDict, sampleDef, outDir):
     
     # Make a new table here with cuts applied
     # NOTE: we really need a better way of labelling constraints
-    for key in sample:
+    for key in sampleDef:
         if key not in ['label', 'plotLabel']:
             if key[-4:] == '_MIN':
                 col=key[:-4]
-                newTab=newTab.where(newTab[col] > sample[key])
+                newTab=newTab.where(newTab[col] > sampleDef[key])
             elif key[-4:] == '_MAX':
                 col=key[:-4]
-                newTab=newTab.where(newTab[col] < sample[key])
+                newTab=newTab.where(newTab[col] < sampleDef[key])
             else:
-                if type(sample[key]) != list:
-                    newTab=newTab.where(newTab[key] == sample[key])
+                if type(sampleDef[key]) != list:
+                    newTab=newTab.where(newTab[key] == sampleDef[key])
                 else:
                     print "Need to add more sampleDef key handling code"
                     IPython.embed()
@@ -399,21 +389,13 @@ def MCMCFit(settingsDict, tab):
     print "... starting values [A, B, C, S] = [%.2f, %.2f, %.2f, %.2f]" % (cA, cB, cC, cS)
 
     if swapAxes == False:
-        # NOTE: no idea why the endianness problem here only affects detP, fix later...
-        try:
-            cProb, probArray=ortho.fastOrthogonalLikelihood(cA, cB, cC, cS,                                                
-                                                        tab['yToFit'],                                              
-                                                        tab['yErrToFitPlus'], tab['yErrToFitMinus'],
-                                                        tab['xToFit'], 
-                                                        tab['xErrToFitPlus'], tab['xErrToFitMinus'], log10RedshiftEvo, tab['detP']) 
-        except:
-            cProb, probArray=ortho.fastOrthogonalLikelihood(cA, cB, cC, cS,                                                
-                                                        tab['yToFit'],                                              
-                                                        tab['yErrToFitPlus'], tab['yErrToFitMinus'],
-                                                        tab['xToFit'], 
-                                                        tab['xErrToFitPlus'], tab['xErrToFitMinus'], log10RedshiftEvo, tab['detP'].byteswap().newbyteorder()) 
+        cProb, probArray=csr.fastOrthogonalLikelihood(cA, cB, cC, cS,                                                
+                                                      tab['yToFit'],                                              
+                                                      tab['yErrToFitPlus'], tab['yErrToFitMinus'],
+                                                      tab['xToFit'], 
+                                                      tab['xErrToFitPlus'], tab['xErrToFitMinus'], log10RedshiftEvo, tab['detP'])  
     else:
-        cProb, probArray=ortho.fastOrthogonalLikelihood(cA, cB, cC, cS,                                                
+        cProb, probArray=csr.fastOrthogonalLikelihood(cA, cB, cC, cS,                                                
                                                         tab['xToFit'],                                              
                                                         tab['xErrToFitPlus'], tab['xErrToFitMinus'],
                                                         tab['yToFit'], 
@@ -436,29 +418,21 @@ def MCMCFit(settingsDict, tab):
                 
         pA, pB, pC, pS=makeProposal([cA, cB, cC, cS], scales, settingsDict)
         if swapAxes == False:
-            # NOTE: weird endienness issue affecting detP, fix later...
-            try:
-                pProb, probArray=ortho.fastOrthogonalLikelihood(pA, pB, pC, pS,                                                
-                                                        tab['yToFit'],                                              
-                                                        tab['yErrToFitPlus'], tab['yErrToFitMinus'],
-                                                        tab['xToFit'], 
-                                                        tab['xErrToFitPlus'], tab['xErrToFitMinus'], log10RedshiftEvo, tab['detP'])   
-            except:
-                pProb, probArray=ortho.fastOrthogonalLikelihood(pA, pB, pC, pS,                                                
-                                                        tab['yToFit'],                                              
-                                                        tab['yErrToFitPlus'], tab['yErrToFitMinus'],
-                                                        tab['xToFit'], 
-                                                        tab['xErrToFitPlus'], tab['xErrToFitMinus'], log10RedshiftEvo, tab['detP'].byteswap().newbyteorder()) 
+            pProb, probArray=csr.fastOrthogonalLikelihood(pA, pB, pC, pS,                                                
+                                                          tab['yToFit'],                                              
+                                                          tab['yErrToFitPlus'], tab['yErrToFitMinus'],
+                                                          tab['xToFit'], 
+                                                          tab['xErrToFitPlus'], tab['xErrToFitMinus'], log10RedshiftEvo, tab['detP'])   
         else:
-            pProb, probArray=ortho.fastOrthogonalLikelihood(pA, pB, pC, pS,                                                
-                                                        tab['xToFit'],                                              
-                                                        tab['xErrToFitPlus'], tab['xErrToFitMinus'],
-                                                        tab['yToFit'], 
-                                                        tab['yErrToFitPlus'], tab['yErrToFitMinus'], log10RedshiftEvo, tab['detP'])                                                         
+            pProb, probArray=csr.fastOrthogonalLikelihood(pA, pB, pC, pS,                                                
+                                                          tab['xToFit'],                                              
+                                                          tab['xErrToFitPlus'], tab['xErrToFitMinus'],
+                                                          tab['yToFit'], 
+                                                          tab['yErrToFitPlus'], tab['yErrToFitMinus'], log10RedshiftEvo, tab['detP'])                                                         
                                                         
         if np.isinf(pProb) == True:
             print "Hmm - infinite probability?"
-            ipshell()
+            IPython.embed()
             sys.exit()
         
         # Changed below because we're now dealing with log10 probabilities instead of the actual numbers 
@@ -540,39 +514,8 @@ def MCMCFit(settingsDict, tab):
     # We have numFreePars above
     lnL=np.log(np.power(10, likelihoods))
     AIC=2*numFreePars-2*lnL.max()
-    AICc=AIC+(2*numFreePars*(numFreePars+1))/(float(len(stab))-numFreePars-1)
-    
-    # Diagnostic plot, of the probs around the max likelihood values, for checking the MillGasV1_GO sim
-    # NOTE: This will only make sense when C fixed to 0
-    #outFileName=outDir+os.path.sep+"L-T_ABC_PDetCoded.pdf"
-    #mlProb, probArray=ortho.fastOrthogonalLikelihood(mlA, mlB, mlC, mlS, zpx, tab['log10L'], tab['log10LErrPlus'], tab['log10LErrMinus'], 
-                                                #tab['log10T'], tab['log10TErrPlus'], tab['log10TErrMinus'], log10RedshiftEvo, 
-                                                #tab['detP'])               
-    #probArray=probArray/probArray.max()
-    #plt.figure(figsize=(8, 8))
-    #plt.axes([0.5, 0.5, 0.1, 0.1])
-    #cmdata=np.outer(np.linspace(0, 1, 10), np.linspace(0, 1, 10)) #  to easily make a colorbar 0-1
-    #cmim=plt.imshow(cmdata, cmap = "gray")
-    #ax=plt.axes([0.1, 0.11, 0.85, 0.85])
-    #for row, p in zip(tab, probArray):
-        #plt.plot(row['log10T'], row['log10L'], 'D', color = (p, p, p))     
-    #plotRange=np.linspace(0.1, 22.0, 100)
-    #fitLogLXs=cA+cB*np.log10(plotRange/pivotT)
-    #plt.plot(np.log10(plotRange), fitLogLXs, 'b-', label = 'MCMC: log10(L) = %.2f + %.2f * log10(T/%.1f)' % (mlA, mlB, pivotT))
-    #linreg=stats.linregress(tab['log10T']-zpx, tab['log10L'])
-    #fitLogLXs=linreg[1]+linreg[0]*np.log10(plotRange/pivotT)
-    #plt.plot(np.log10(plotRange), fitLogLXs, 'r-', label = 'OLS: log10(L) = %.2f + %.2f * log10(T/%.1f)' % (linreg[1], linreg[0], pivotT))
-    #fitResult=BCESLTFit(tab['log10T']-zpx, tab['log10L'], tab['log10TErrPlus'], tab['log10LErrPlus'])
-    #fitLogLXs=fitResult['intercept']+fitResult['slope']*np.log10(plotRange/pivotT)
-    #plt.plot(np.log10(plotRange), fitLogLXs, 'g-', label = 'BCES: log10(L) = %.2f + %.2f * log10(T/%.1f)' % (fitResult['intercept'], fitResult['slope'], pivotT))
-    #plt.legend(loc = 'lower right')
-    #plt.xlabel("log10(T)")
-    #plt.ylabel("log10(L)")
-    #plt.xlim(0, 1.3)
-    #plt.ylim(44, 46.5) 
-    #plt.savefig("checkMCMCFit.pdf")   
-    #plt.close()
-        
+    AICc=AIC+(2*numFreePars*(numFreePars+1))/(float(len(tab))-numFreePars-1)
+            
     return {'A': mlA, 'AErr': mlAErr, 
             'B': mlB, 'BErr': mlBErr, 
             'C': mlC, 'CErr': mlCErr, 
@@ -586,7 +529,6 @@ def makeProposal(pars, scales, settingsDict):
     
     Proposal distributions are assumed Gaussian with scales [AScale, BScale, CScale, SScale].
     
-   
     """
   
     # This makes sure that if we're testing by swapping axes, we can use the same prior scales
@@ -653,7 +595,7 @@ def make1DProbDensityPlots(fitResults, settingsDict, outDir):
             count=count+1
             x=np.linspace(fitResults['%s' % (v)]-sigmaScale*fitResults['%sErr' % (v)], 
                              fitResults['%s' % (v)]+sigmaScale*fitResults['%sErr' % (v)], bins)
-            P1D=ortho.fast1DProbProjection(x, a, fitResults['pars'])
+            P1D=csr.fast1DProbProjection(x, a, fitResults['pars'])
             P1D=P1D/P1D.max()
             plt.subplot(1, cols, count)
             ax=plt.gca()
@@ -669,9 +611,6 @@ def make1DProbDensityPlots(fitResults, settingsDict, outDir):
             leg=plt.legend(prop = {'size': 12})
             leg.draw_frame(False)
             plt.draw()
-   
-    #ipshell()
-    #sys.exit()
     
     plt.savefig(outDir+os.path.sep+"1DProb_allPars.pdf")
     plt.close()
@@ -709,22 +648,22 @@ def makeContourPlots(fitResults, outDir, sampleLabel):
     Ss=np.linspace(mlS-5.0*mlSErr-math.fmod(mlS-5.0*mlSErr, 0.05), mlS+7.0*mlSErr-math.fmod(mlS+7.0*mlSErr, 0.05), 81)
     if mlAErr > 0 and mlBErr > 0:     
         outFileName=outDir+os.path.sep+"contours_AvB_"+sampleLabel+".pdf"
-        PDist2D=ortho.fast2DProbProjection(As, Bs, 0, 1, pars)
+        PDist2D=csr.fast2DProbProjection(As, Bs, 0, 1, pars)
         astImages.saveFITS(outFileName.replace(".pdf", ".fits"), PDist2D, None)
         probContourPlot(As, Bs, "A", "B", 0.1, 0.1, mlA, mlB, mlAErr, mlBErr, PDist2D, outFileName)
     if mlAErr > 0 and mlCErr > 0:
         outFileName=outDir+os.path.sep+"contours_AvC_"+sampleLabel+".pdf"
-        PDist2D=ortho.fast2DProbProjection(As, Cs, 0, 2, pars)
+        PDist2D=csr.fast2DProbProjection(As, Cs, 0, 2, pars)
         probContourPlot(As, Cs, "A", "C", 0.1, 0.5, mlA, mlC, mlAErr, mlCErr, PDist2D, outFileName)
         astImages.saveFITS(outFileName.replace(".pdf", ".fits"), PDist2D, None)
     if mlAErr > 0 and mlSErr > 0:
         outFileName=outDir+os.path.sep+"contours_AvS_"+sampleLabel+".pdf"
-        PDist2D=ortho.fast2DProbProjection(As, Ss, 0, 3, pars)
+        PDist2D=csr.fast2DProbProjection(As, Ss, 0, 3, pars)
         probContourPlot(As, Ss, "A", "S", 0.1, 0.05, mlA, mlS, mlAErr, mlSErr, PDist2D, outFileName)
         astImages.saveFITS(outFileName.replace(".pdf", ".fits"), PDist2D, None)
     if mlBErr > 0 and mlCErr > 0:
         outFileName=outDir+os.path.sep+"contours_BvC_"+sampleLabel+".pdf"
-        PDist2D=ortho.fast2DProbProjection(Bs, Cs, 1, 2, pars)
+        PDist2D=csr.fast2DProbProjection(Bs, Cs, 1, 2, pars)
         probContourPlot(Bs, Cs, "B", "C", 0.1, 0.5, mlB, mlC, mlBErr, mlCErr, PDist2D, outFileName)
         astImages.saveFITS(outFileName.replace(".pdf", ".fits"), PDist2D, None)
         
@@ -926,7 +865,7 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
         plt.draw()
             
     ax=plt.gca()
-    plt.text(0.95, 0.05, sample['plotLabel'], ha = 'right', va = 'center', transform = ax.transAxes, 
+    plt.text(0.95, 0.05, sampleDict['plotLabel'], ha = 'right', va = 'center', transform = ax.transAxes, 
             fontdict = {"size": 16, "linespacing" : 1.2, 'family': 'serif'})
 
     outFileName=outDir+os.path.sep+"scalingRelation_%s_%s.pdf" % (yColumnName, xColumnName)
@@ -1054,32 +993,12 @@ def makeScalingRelationPlot_ABC(sampleTab, fitResults, outDir, sampleDict, setti
     plt.draw()
             
     ax=plt.gca()
-    plt.text(0.95, 0.05, sample['plotLabel'], ha = 'right', va = 'center', transform = ax.transAxes, 
+    plt.text(0.95, 0.05, sampleDict['plotLabel'], ha = 'right', va = 'center', transform = ax.transAxes, 
             fontdict = {"size": 16, "linespacing" : 1.2, 'family': 'serif'})
 
     plt.savefig(outFileName)    
     plt.close()
-    
-##---
-    #plt.loglog()
-                
-    #plt.ylabel(yLabel, size = 16)
-    #plt.xlabel("$T$ (keV)", size = 16)
-    #plt.xlim(0.2, 20.0)
-    #plt.ylim(8e40, 5e46)
         
-    #leg=plt.legend(loc = 'upper left', prop = {'size': 16}, scatterpoints = 1, numpoints = 1)
-    #leg.draw_frame(False)
-    #plt.draw()
-            
-    #ax=plt.gca()
-    #plt.text(0.95, 0.05, sample['plotLabel'], ha = 'right', va = 'center', transform = ax.transAxes, 
-               #fontdict = {"size": 16, "linespacing" : 1.2, 'family': 'serif'})
-
-    #plt.savefig(outFileName)    
-        
-    #plt.close()
-    
 #-------------------------------------------------------------------------------------------------------------
 def makeScalingRelationPlots_sideBySide(sampleDefs, outDir, settingsDict):
     """Makes side by side subpanel plots of all the scaling relations in sampleDefs
@@ -1146,24 +1065,10 @@ def makeScalingRelationPlots_sideBySide(sampleDefs, outDir, settingsDict):
             yLabel="$E^{%d}(z)$ " % (settingsDict['yScaleFactorPower'])+yLabel
 
         plt.plot(plotRange, yFit, 'b--', label = fitLabel) 
-
-        ## Below is just diagnostic
-        #if sampleLabel == 'REXCESS':
-            #prattLabel='$L_{\sf X}$ (erg s$^{-1}$) = 10$^{44.85 \pm 0.06}$ ($T/5.0$ keV)$^{3.35 \pm 0.32}$' 
-            #prattLabel="$E^{-1}(z)$ "+prattLabel
-            #prattLabel="P09: "+prattLabel
-            #prattLX=np.power(10, 44.85)*np.power((plotRange/5.0), 3.35)
-            #plt.plot(plotRange, prattLX, 'r:', label = prattLabel)
-            #sample['plotLabel']=""
             
         plt.ylabel(yLabel, size = 16)
         plt.xlabel("%s (%s)" % (settingsDict['xPlotLabel'], settingsDict['xPlotLabelUnits']), size = 16)
-        
-        #if settingsDict['showPlotLegend'] == True:
-            #leg=plt.legend(loc = 'upper left', prop = {'size': 16}, scatterpoints = 1, numpoints = 1)
-            #leg.draw_frame(False)
-            #plt.draw()
-                
+                        
         ax=plt.gca()
         plt.text(0.95, 0.05, s['plotLabel'], ha = 'right', va = 'center', transform = ax.transAxes, 
                 fontdict = {"size": 16, "linespacing" : 1.2, 'family': 'serif'})
@@ -1197,31 +1102,6 @@ def makeRoundedPlotLabelStrings(fitResults, numSigFig = 1):
             valStr=fmt % (fitResults['%s' % (p)])
             errStr=fmt % (fitResults['%sErr' % (p)])
             fitResults['plotLabel_%s' % (p)]="%s \pm %s" % (valStr, errStr)            
-    
-    # Rounding
-    #parLabels=['A', 'B', 'C', 'S']
-    #for p in parLabels:
-        #if fitResults['%sErr' % (p)] != 0:
-            #sPar=str(fitResults['%s' % (p)])
-            #sParErr=str(fitResults['%sErr' % (p)])
-            #errCount=0
-            #while sParErr[errCount] == '0' or sParErr[errCount] == '.':
-                #errCount=errCount+1
-            #valCount=errCount+len(sPar.split(".")[0])-1 # takes care of values with more than single digits or - (> 10, > 100 etc.)            
-            
-            ## Some jiggery pokery to handle rounding 2.95 > 3.0 and not 2.0
-            #valFloatPart=round(float("0."+sPar[valCount:]), numSigFig)
-            #sVal=sPar[:valCount]+str(valFloatPart)[2:]
-            #if valFloatPart == 1.0:
-                #sVal=str(float(sPar[:valCount])+1)[:valCount]+str(valFloatPart)[2:]
-                
-            #sErr=sParErr[:errCount]+str(round(float("0."+sParErr[errCount:]), numSigFig))[2:]
-            #fitResults['plotLabel_%s' % (p)]="%s \pm %s" % (sVal, sErr)
-            #print "check plotLabel stuff"
-            #ipshell()
-            #sys.exit()
-        #else:
-            #fitResults['plotLabel_%s' % (p)]="%.3f" % (fitResults['%s' % (p)])
         
 #-------------------------------------------------------------------------------------------------------------
 def makeNormEvoPlot(stab, fitResults, outDir, settingsDict):
@@ -1351,49 +1231,49 @@ def makePaperContourPlots(fitResults, parDict, outDir):
     # Bottom row   
     # AB
     plt.subplot(4, 4, 15)
-    PDist2D=ortho.fast2DProbProjection(As, Bs, 0, 1, pars)
+    PDist2D=csr.fast2DProbProjection(As, Bs, 0, 1, pars)
     probContourPlot_subPlot(As, Bs, "A", "B", AStep, BStep, mlA, mlB, mlAErr, mlBErr, PDist2D, noYLabels = True)
     # AC
     plt.subplot(4, 4, 14)
-    PDist2D=ortho.fast2DProbProjection(As, Cs, 0, 2, pars)
+    PDist2D=csr.fast2DProbProjection(As, Cs, 0, 2, pars)
     probContourPlot_subPlot(As, Cs, "A", "C", AStep, CStep, mlA, mlC, mlAErr, mlCErr, PDist2D, noYLabels = True)
     # AS
     plt.subplot(4, 4, 13)
-    PDist2D=ortho.fast2DProbProjection(As, Ss, 0, 3, pars)
+    PDist2D=csr.fast2DProbProjection(As, Ss, 0, 3, pars)
     probContourPlot_subPlot(As, Ss, "A", "S", AStep, SStep, mlA, mlS, mlAErr, mlSErr, PDist2D)  
     
     # Middle row
     # BC
     plt.subplot(4, 4, 10)
-    PDist2D=ortho.fast2DProbProjection(Bs, Cs, 1, 2, pars)
+    PDist2D=csr.fast2DProbProjection(Bs, Cs, 1, 2, pars)
     probContourPlot_subPlot(Bs, Cs, "B", "C", BStep, CStep, mlB, mlC, mlBErr, mlCErr, PDist2D, noXLabels = True, noYLabels = True)  
     # BS
     plt.subplot(4, 4, 9)
-    PDist2D=ortho.fast2DProbProjection(Bs, Ss, 1, 3, pars)
+    PDist2D=csr.fast2DProbProjection(Bs, Ss, 1, 3, pars)
     probContourPlot_subPlot(Bs, Ss, "B", "S", BStep, SStep, mlB, mlS, mlBErr, mlSErr, PDist2D, noXLabels = True)  
     
     # Top row
     # CS
     plt.subplot(4, 4, 5)
-    PDist2D=ortho.fast2DProbProjection(Cs, Ss, 2, 3, pars)
+    PDist2D=csr.fast2DProbProjection(Cs, Ss, 2, 3, pars)
     probContourPlot_subPlot(Cs, Ss, "C", "S", CStep, SStep, mlC, mlS, mlCErr, mlSErr, PDist2D, noXLabels = True)      
     
     # 1D plots
     # S
     plt.subplot(4, 4, 1)
-    PDist1D=ortho.fast1DProbProjection(Ss, 3, pars)
+    PDist1D=csr.fast1DProbProjection(Ss, 3, pars)
     probPlot1D_subPlot(Ss, "S", SStep, mlS, mlSErr, PDist1D, fitResults['plotLabel_S'], noYLabels = True, noXLabels = True)
     # C
     plt.subplot(4, 4, 6)
-    PDist1D=ortho.fast1DProbProjection(Cs, 2, pars)
+    PDist1D=csr.fast1DProbProjection(Cs, 2, pars)
     probPlot1D_subPlot(Cs, "C", CStep, mlC, mlCErr, PDist1D, fitResults['plotLabel_C'], noYLabels = True, noXLabels = True)
     # B
     plt.subplot(4, 4, 11)
-    PDist1D=ortho.fast1DProbProjection(Bs, 1, pars)
+    PDist1D=csr.fast1DProbProjection(Bs, 1, pars)
     probPlot1D_subPlot(Bs, "B", BStep, mlB, mlBErr, PDist1D, fitResults['plotLabel_B'], noYLabels = True, noXLabels = True)
     # A
     plt.subplot(4, 4, 16)
-    PDist1D=ortho.fast1DProbProjection(As, 0, pars)
+    PDist1D=csr.fast1DProbProjection(As, 0, pars)
     probPlot1D_subPlot(As, "A", AStep, mlA, mlAErr, PDist1D, fitResults['plotLabel_A'], noYLabels = True, noXLabels = False)
 
     plt.savefig(outDir+os.path.sep+"2DProb_allPars.pdf")
@@ -1495,110 +1375,6 @@ def probContourPlot_subPlot(par1Values, par2Values, par1Label, par2Label, par1Ti
         xlocs, xlabels=plt.xticks()
         plt.xlabel("")
         plt.xticks(xlocs, [""]*len(xlabels))
-    
-#-------------------------------------------------------------------------------------------------------------
-# Main
-if len(sys.argv) < 2:
-    print "Run: % fitOrthogonal.py parFile"
-else:
-    
-    parFileName=sys.argv[1]
-    parDict=ParametersDict()
-    parDict.read_from_file(parFileName)
-    
-    # Options
-    #pivotT=parDict['pivotT']
-    #scaleLXSelfSimilar=parDict['scaleLXSelfSimilar']
-    refit=parDict['refit']
 
-    rootOutDir=parFileName.replace(".par", "")
-    
-    if os.path.exists(rootOutDir) == False:
-        os.makedirs(rootOutDir)
-
-    # Copy .par file into dir so we can track what we used
-    os.system("cp %s %s/" % (parFileName, rootOutDir))
-    
-    # Define samples
-    sampleDefs=parDict['sampleDefs']
-
-    # Fits and plots for each subsample
-    for sample in sampleDefs:
-                    
-        print ">>> Fitting sample %s ..." % (sample['label'])
-        
-        # Now saving all plots for a given sample under a subdir
-        outDir=rootOutDir+os.path.sep+sample['label']
-        if os.path.exists(outDir) == False:
-            os.makedirs(outDir)
-        
-        # Get table we can fit
-        stab=sampleGetter(parDict, sample, outDir)
-        print "... number of clusters in sample = %d" % (len(stab))
-        
-        # Check effect of ignoring selection function
-        #if parDict['ignoreSelectionFunction'] == True:
-            #stab['detP'][:]=1.0
-        
-        # Makes fits
-        pickleFileName=outDir+os.path.sep+"fitResults_"+sample['label']+".pickled"
-        if os.path.exists(pickleFileName) == False or refit == True:
-            fitResults=MCMCFit(parDict, stab)
-            pickleFile=file(pickleFileName, "w")
-            pickler=pickle.Pickler(pickleFile)
-            pickler.dump(fitResults)
-        else:
-            pickleFile=file(pickleFileName, "r")
-            unpickler=pickle.Unpickler(pickleFile)
-            fitResults=unpickler.load()
-        
-        print "... xPivot = %.3e ..." % (parDict['xPivot'])
-        print "... yPivot = %.3e ..." % (parDict['yPivot'])
-        print "... A = %.3f +/- %.3f" % (fitResults['A'], fitResults['AErr'])
-        print "... B = %.3f +/- %.3f" % (fitResults['B'], fitResults['BErr'])
-        print "... C = %.3f +/- %.3f" % (fitResults['C'], fitResults['CErr'])
-        print "... S = %.3f +/- %.3f" % (fitResults['S'], fitResults['SErr'])
-        print "... s = %.3f +/- %.3f" % (fitResults['s'], fitResults['sErr']) 
-        print "... zStatistic (< 2 for all parameters indicates chains converged) = ", fitResults['zStatistic']
-        if 'AIC' in fitResults.keys():
-            print "... AIC = %.3f ..." % (fitResults['AIC'])
-            print "... AICc = %.3f ..." % (fitResults['AICc'])
-            
-        sample['fitResults']=fitResults # handy for making side by side L-T plot (e.g. z evo in bins)
-        sample['stab']=stab
-        
-        # These are handy...
-        makeRoundedPlotLabelStrings(fitResults)
-                
-        # Make plot of scaling relation
-        if fitResults['AErr'] > 0 and fitResults['BErr'] > 0:
-            makeScalingRelationPlot(stab, fitResults, outDir, sample, parDict)
-        
-        # Not the most elegant way... scaling relation plot with evolution
-        if fitResults['AErr'] > 0 and fitResults['BErr'] > 0 and fitResults['CErr'] > 0:
-            makeScalingRelationPlot_ABC(stab, fitResults, outDir, sample, parDict, mode = 'normal')
-            #makeLTPlot_ABC(stab, fitResults, outDir, sample, parDict, pivotT = pivotT, sampleLabel = sampleLabel, mode = 'PDetCoded', scaleLXSelfSimilar = scaleLXSelfSimilar)
-
-        # 1D plots for each parameter
-        make1DProbDensityPlots(fitResults, parDict, outDir)
-                        
-        # Plot of evolution relative to E(z) or 1+z
-        makeNormEvoPlot(stab, fitResults, outDir, parDict)
-
-        ## Contours (duh)
-        #try:
-            #makeContourPlots(fitResults, outDir, sample['label'])
-        #except:
-            #print "WARNING: failed to make contour plots"
-            
-        # Fancy plots of 1D, 2D prob for the paper, only made for 4 parameters fitted
-        if fitResults['AErr'] > 0 and fitResults['BErr'] > 0 and fitResults['CErr'] > 0:
-            try:
-                makePaperContourPlots(fitResults, parDict, outDir)
-            except:
-                print "WARNING: failed to make fancy 1d, 2d prob distribution plots (S too small?)"
-    
-    # L-T plots side by side, e.g. z bins
-    makeScalingRelationPlots_sideBySide(sampleDefs, rootOutDir, parDict)
     
     
