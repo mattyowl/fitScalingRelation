@@ -1,0 +1,11 @@
+The example in this directory should reproduce the results presented
+in Hilton et al. (2012) for the evolution of the X-ray luminosity --
+temperature relation from XCSDR1 (Mehrtens et al. 2012).
+
+One tweak has been made compared to the results in Hilton et al. - 
+here, a pivot is applied to both the x and y coordinates when doing
+the orthogonal regression.
+
+Note that the negative evolution seen in Hilton et al. (2012) is
+reduced significantly using the updated temperature and luminosity
+pipelines described in Rooney et al. (in prep.)

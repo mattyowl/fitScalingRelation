@@ -1,0 +1,101 @@
+# Parameters file for MCMC fitting of generic cluster scaling relations
+#
+# Bisector code: Sx and Sy parameters are used
+# Orthogonal code: S parameter used
+
+# Set to True to rerun the fitting, False to just rerun and replot (if adjusting the code/labels etc.)
+refit=True
+
+# Data options - data now need to be provided in a .fits table
+inFileName="DR1DR2Test_June2015_Le44.fits"
+
+# Need to know which columns contain data to fit; can have asymmetric error bars
+xColumnName="temp"
+xPlusErrColumnName="temp_max"
+xMinusErrColumnName="temp_min"
+yColumnName="L500"
+yPlusErrColumnName="L500_max"
+yMinusErrColumnName="L500_min"
+
+# For plotting... if yScaleFactor applied, we'll add that automatically
+# NOTE: having trouble parsing with /sf as needed for $L_{\sf X}$ 
+xPlotLabel="$T$"
+xPlotLabelUnits="keV"
+xPlotMin=0.2
+xPlotMax=20.0
+yPlotLabel="$L_{X}$"
+yPlotLabelUnits="erg s$^{-1}$"
+yPlotMin=8e40
+yPlotMax=3e46
+showPlotLegend=False
+
+# Define sample cuts - need at least one of these
+# Add _MIN, _MAX to end of a column name to indicate whether it is lower or upper limit
+# Use a list if want to include multiple matches e.g. 'redshiftType': ['spec', 'phot']
+sampleDefs=[{'label': 'All', 'redshift_MIN': 0.0, 'redshift_MAX': 1.5, 'redshiftType': 'spec', 'plotLabel': '0.0 < $z$ < 1.5'}]
+
+# Set below to True if you want to take log10 of the input data columns
+xTakeLog10=True
+yTakeLog10=True
+
+# Note this only applies to fitting (xTakeLog10=True, yTakeLog10=True), not to e.g. the plot display
+symmetriseErrors=False
+
+# Set the pivot for the quantity plotted on x axis (in same units as for xColumnName)
+xPivot="median"
+yPivot="median"
+
+# Stuff we need to apply any scaling - will just be E(z) to some power for now
+redshiftColumnName="redshift"
+xScaleFactor=None
+yScaleFactor="E(z)"
+yScaleFactorPower=-1
+
+# Select model, either: '1+z' or 'E(z)'
+evoModel='1+z'
+
+# MCMC options - number of samples is really number of iterations
+#numSamples=1000000
+#burnSamples=100000
+#thinning=2
+numSamples=20000
+burnSamples=5000
+thinning=1
+
+# Prior ranges - all uniform
+prior_A_MIN=-1.0
+prior_A_MAX=1.0
+prior_B_MIN=1.0
+prior_B_MAX=5.0
+prior_C_MIN=-3.0
+prior_C_MAX=3.0
+prior_S_MIN=0.01
+prior_S_MAX=0.5
+prior_Sx_MIN=0.01
+prior_Sx_MAX=0.5
+prior_Sy_MIN=0.01
+prior_Sy_MAX=0.5
+
+# Define which parameters to fit for: 'free' or 'fixed' - if the latter, keep at C0, S0 etc. value
+AFit='free'
+BFit='free'
+CFit='free'
+SxFit='free'
+SyFit='free'
+SFit='free'
+
+# Define scales for proposal distributions
+# Twiddling these leads to better mixing in the chains and faster convergence
+AScale=0.1
+BScale=0.2
+CScale=0.1
+SxScale=0.01
+SyScale=0.01
+SScale=0.005
+#AScale=0.05
+#BScale=0.05
+#CScale=0.05
+#SxScale=0.005
+#SyScale=0.005
+#SScale=0.005
+
