@@ -97,11 +97,11 @@ else:
         fsr.makeRoundedPlotLabelStrings(fitResults)
                 
         # Make plot of scaling relation
-        if fitResults['AErr'] > 0 and fitResults['BErr'] > 0:
-            fsr.makeScalingRelationPlot(stab, fitResults, outDir, sample, parDict)
+        #if fitResults['AErr'] > 0 and fitResults['BErr'] > 0:
+        fsr.makeScalingRelationPlot(stab, fitResults, outDir, sample, parDict)
         
         # Not the most elegant way... scaling relation plot with evolution
-        if fitResults['AErr'] > 0 and fitResults['BErr'] > 0 and fitResults['CErr'] > 0:
+        if fitResults['CErr'] > 0:
             fsr.makeScalingRelationPlot_ABC(stab, fitResults, outDir, sample, parDict, mode = 'normal')
 
         # 1D plots for each parameter

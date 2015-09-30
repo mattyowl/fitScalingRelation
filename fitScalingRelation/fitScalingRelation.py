@@ -198,6 +198,18 @@ def getPPrior(pA, pB, pC, pS, settingsDict):
     return pPrior
 
 #-------------------------------------------------------------------------------------------------------------
+def byteSwapArr(arr):
+    """FITS is big-endian, but cython likes native-endian arrays (little-endian for x86)... so, byteswap
+    if we need.
+    
+    """
+    
+    if arr.dtype.byteorder == '>':
+        arr=arr.byteswap().newbyteorder('=')
+    
+    return arr
+        
+#-------------------------------------------------------------------------------------------------------------
 def sampleGetter(settingsDict, sampleDef, outDir):
     """Loads in catalogue in .fits table format, and add columns xToFit, yToFit, xErrToFit, yErrToFit,
     which are fed into the MCMCFit routine. Applies any asked for scalings and cuts according to the 
@@ -291,6 +303,10 @@ def sampleGetter(settingsDict, sampleDef, outDir):
         yErrToFitPlus=stab[yPlusErrColumnName]
         yErrToFitMinus=stab[yMinusErrColumnName]
 
+    # Swap
+    if xToFit.dtype.byteorder == '>':
+        xToFit=xToFit.byteswap().newbyteorder('=')
+        
     stab.add_column('xToFit', xToFit)
     stab.add_column('xErrToFitPlus', xErrToFitPlus)
     stab.add_column('xErrToFitMinus', xErrToFitMinus)
@@ -318,7 +334,7 @@ def sampleGetter(settingsDict, sampleDef, outDir):
         stab['xErrToFitMinus']=xAvErr
         stab['yErrToFitPlus']=yAvErr
         stab['yErrToFitMinus']=yAvErr
-                
+            
     # Histograms of redshift and x property distribution, one above the other
     # Fiddle with this later...
     #print "plots"
@@ -388,18 +404,25 @@ def MCMCFit(settingsDict, tab):
 
     print "... starting values [A, B, C, S] = [%.2f, %.2f, %.2f, %.2f]" % (cA, cB, cC, cS)
 
+    # Byte swapping festival to keep cython happy
+    yToFit=byteSwapArr(tab['yToFit'])
+    yErrToFitPlus=byteSwapArr(tab['yErrToFitPlus'])
+    yErrToFitMinus=byteSwapArr(tab['yErrToFitMinus'])
+    xToFit=byteSwapArr(tab['xToFit'])
+    xErrToFitPlus=byteSwapArr(tab['xErrToFitPlus'])
+    xErrToFitMinus=byteSwapArr(tab['xErrToFitMinus'])    
+    detP=byteSwapArr(tab['detP'])
+    
     if swapAxes == False:
         cProb, probArray=csr.fastOrthogonalLikelihood(cA, cB, cC, cS,                                                
-                                                      tab['yToFit'],                                              
-                                                      tab['yErrToFitPlus'], tab['yErrToFitMinus'],
-                                                      tab['xToFit'], 
-                                                      tab['xErrToFitPlus'], tab['xErrToFitMinus'], log10RedshiftEvo, tab['detP'])  
+                                                      yToFit, yErrToFitPlus, yErrToFitMinus,
+                                                      xToFit, xErrToFitPlus, xErrToFitMinus, log10RedshiftEvo, 
+                                                      detP)  
     else:
         cProb, probArray=csr.fastOrthogonalLikelihood(cA, cB, cC, cS,                                                
-                                                        tab['xToFit'],                                              
-                                                        tab['xErrToFitPlus'], tab['xErrToFitMinus'],
-                                                        tab['yToFit'], 
-                                                        tab['yErrToFitPlus'], tab['yErrToFitMinus'], log10RedshiftEvo, tab['detP']) 
+                                                      xToFit, xErrToFitPlus, xErrToFitMinus,
+                                                      yToFit, yErrToFitPlus, yErrToFitMinus, log10RedshiftEvo,
+                                                      detP) 
                                                    
     if cProb == 0:
         raise Exception, "initial position in MCMC chain has zero probability - change initial values/fiddle with priors in .par file?"
@@ -419,16 +442,14 @@ def MCMCFit(settingsDict, tab):
         pA, pB, pC, pS=makeProposal([cA, cB, cC, cS], scales, settingsDict)
         if swapAxes == False:
             pProb, probArray=csr.fastOrthogonalLikelihood(pA, pB, pC, pS,                                                
-                                                          tab['yToFit'],                                              
-                                                          tab['yErrToFitPlus'], tab['yErrToFitMinus'],
-                                                          tab['xToFit'], 
-                                                          tab['xErrToFitPlus'], tab['xErrToFitMinus'], log10RedshiftEvo, tab['detP'])   
+                                                          yToFit, yErrToFitPlus, yErrToFitMinus,
+                                                          xToFit, xErrToFitPlus, xErrToFitMinus, log10RedshiftEvo,
+                                                          detP)   
         else:
             pProb, probArray=csr.fastOrthogonalLikelihood(pA, pB, pC, pS,                                                
-                                                          tab['xToFit'],                                              
-                                                          tab['xErrToFitPlus'], tab['xErrToFitMinus'],
-                                                          tab['yToFit'], 
-                                                          tab['yErrToFitPlus'], tab['yErrToFitMinus'], log10RedshiftEvo, tab['detP'])                                                         
+                                                          xToFit, xErrToFitPlus, xErrToFitMinus,
+                                                          yToFit, yErrToFitPlus, yErrToFitMinus, log10RedshiftEvo,
+                                                          detP)                                                         
                                                         
         if np.isinf(pProb) == True:
             print "Hmm - infinite probability?"
@@ -818,7 +839,12 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
                    xerr = np.array([sampleTab[xMinusErrColumnName],
                                     sampleTab[xPlusErrColumnName]]),
                    fmt = 'kD', mec = 'k', label = sampleDict['label']+" (N=%d)" % (len(sampleTab)))           
-    plt.loglog()
+    if xTakeLog10 == True and yTakeLog10 == True:
+        plt.loglog()
+    elif xTakeLog10 == True and yTakeLog10 == False:
+        plt.semilogx()
+    elif xTakeLog10 == False and yTakeLog10 == True:
+        plt.semilogy()
 
     #cmdata=np.outer(np.linspace(0, 1, 10), np.linspace(0, 1, 10)) #  to easily make a colorbar 0-1
     #cmim=plt.imshow(cmdata, cmap = "gray")
