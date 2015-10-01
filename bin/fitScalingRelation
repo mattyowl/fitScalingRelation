@@ -80,11 +80,14 @@ else:
         
         print "... xPivot = %.3e ..." % (parDict['xPivot'])
         print "... yPivot = %.3e ..." % (parDict['yPivot'])
-        print "... A = %.3f +/- %.3f" % (fitResults['A'], fitResults['AErr'])
-        print "... B = %.3f +/- %.3f" % (fitResults['B'], fitResults['BErr'])
-        print "... C = %.3f +/- %.3f" % (fitResults['C'], fitResults['CErr'])
-        print "... S = %.3f +/- %.3f" % (fitResults['S'], fitResults['SErr'])
-        print "... s = %.3f +/- %.3f" % (fitResults['s'], fitResults['sErr']) 
+        
+        if parDict['method'] == 'orthogonal':
+            variables=['A', 'B', 'C', 'S', 's']
+        elif parDict['method'] == 'bisector':
+            variables=['A', 'B', 'C', 'Sx', 'Sy']
+        for v in variables:
+            print "... %s = %.3f +/- %.3f" % (v, fitResults['%s' % (v)], fitResults['%sErr' % (v)])
+
         print "... zStatistic (< 2 for all parameters indicates chains converged) = ", fitResults['zStatistic']
         if 'AIC' in fitResults.keys():
             print "... AIC = %.3f ..." % (fitResults['AIC'])
@@ -94,7 +97,7 @@ else:
         sample['stab']=stab
         
         # These are handy...
-        fsr.makeRoundedPlotLabelStrings(fitResults)
+        fsr.makeRoundedPlotLabelStrings(fitResults, variables)
                 
         # Make plot of scaling relation
         #if fitResults['AErr'] > 0 and fitResults['BErr'] > 0:

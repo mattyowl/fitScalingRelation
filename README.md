@@ -1,11 +1,10 @@
 # fitScalingRelation
 
-This is a code for fitting galaxy cluster scaling relations using orthogonal regression and MCMC. It takes
+This is a code for fitting galaxy cluster scaling relations using orthogonal or bisector regression and MCMC. It takes
 into account errors on both variables and intrinsic scatter. The algorithm is described in [Hilton et al. 
 (2012; MNRAS, 424, 2086)](http://adsabs.harvard.edu/abs/2012MNRAS.424.2086H), where it was used to fit the 
 luminosity--temperature scaling relation for the XMM Cluster Survey (XCS) first data release. Note that it is
-planned to add bisector, Y|X and X|Y regression models as options (the bisector mode was used in 
-Hilton et al. 2012), but these are not implemented at present.
+simple to add Y|X and X|Y regression models as additional options, but these have not been implemented at present.
 
 Although the code is very much geared up for fitting galaxy cluster scaling relations of all kinds, it can
 be used for any kind of regression problem with errors on both variables and intrinsic scatter.

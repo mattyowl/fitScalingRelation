@@ -8,7 +8,7 @@
 refit=True
 
 # Which likelihood?
-method="orthogonal"
+method="bisector"
 
 # Data options - data now need to be provided in a .fits table
 inFileName="XCSDR1_2012-05-02.fits"
@@ -37,7 +37,7 @@ showPlotLegend=False
 # Add _MIN, _MAX to end of a column name to indicate whether it is lower or upper limit
 # Use a list if want to include multiple matches e.g. 'redshiftType': ['spec', 'phot']
 # NOTE: the XCSDR1 .fits table has a spurious extra space in the redshiftType column for some reason
-sampleDefs=[{'label': 'All', 'redshift_MIN': 0.0, 'redshift_MAX': 1.5, 'L500_MIN': 0.0, 'L500_min_MIN': 0.0, 'L500_max_MIN': 0.0, 'temp_MIN': 0.0, 'redshiftType': 'spec ', 'plotLabel': '0.0 < $z$ < 1.5'}]
+sampleDefs=[{'label': 'z0p0_0p25', 'redshift_MIN': 0.0, 'redshift_MAX': 0.25, 'L500_MIN': 0.0,          'L500_min_MIN': 0.0, 'L500_max_MIN': 0.0, 'temp_MIN': 0.0, 'redshiftType': 'spec ', 'plotLabel': '0.0 < $z$ < 0.25'},  {'label': 'z0p25_0p5', 'redshift_MIN': 0.25, 'redshift_MAX': 0.5, 'L500_MIN': 0.0, 'L500_min_MIN': 0.0, 'L500_max_MIN': 0.0, 'temp_MIN': 0.0, 'redshiftType': 'spec ', 'plotLabel': '0.25 < $z$ < 0.5'}, {'label': 'z0p5_1p5', 'redshift_MIN': 0.5, 'redshift_MAX': 1.5, 'L500_MIN': 0.0, 'L500_min_MIN': 0.0, 'L500_max_MIN': 0.0, 'temp_MIN': 0.0, 'redshiftType': 'spec ', 'plotLabel': '0.5 < $z$ < 1.5'}]
 
 # Set below to True if you want to take log10 of the input data columns
 xTakeLog10=True
@@ -86,10 +86,12 @@ prior_Sy_MAX=0.5
 # Define which parameters to fit for: 'free' or 'fixed' - if the latter, keep at C0, S0 etc. value
 AFit='free'
 BFit='free'
-CFit='free'
+CFit='fixed'
 SxFit='free'
 SyFit='free'
 SFit='free'
+
+C0=0
 
 # Define scales for proposal distributions
 # Twiddling these leads to better mixing in the chains and faster convergence

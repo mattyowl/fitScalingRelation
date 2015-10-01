@@ -21,7 +21,7 @@ cdef DTYPE_t NSIG=4
 
 #-------------------------------------------------------------------------------------------------------------
 @cython.boundscheck(False) # turn off bounds-checking for entire function
-def fastOrthogonalLikelihood(DTYPE_t A, DTYPE_t B, DTYPE_t C, DTYPE_t S,
+def fastOrthogonalLikelihood(np.ndarray[DTYPE_t, ndim=1] pars,
                              np.ndarray[DTYPE_t, ndim=1] log10L, np.ndarray[DTYPE_t, ndim=1] log10LErrPlus, np.ndarray[DTYPE_t, ndim=1] log10LErrMinus,
                              np.ndarray[DTYPE_t, ndim=1] log10T, np.ndarray[DTYPE_t, ndim=1] log10TErrPlus, np.ndarray[DTYPE_t, ndim=1] log10TErrMinus,
                              np.ndarray[DTYPE_t, ndim=1] log10RedshiftEvo, np.ndarray[DTYPE_t, ndim=1] detP):
@@ -29,6 +29,12 @@ def fastOrthogonalLikelihood(DTYPE_t A, DTYPE_t B, DTYPE_t C, DTYPE_t S,
     NOTE: Now zpx is assumed applied before, i.e. feed in log10T-zpx, not log10T
     
     """
+    
+    cdef DTYPE_t A, B, C, S
+    A=pars[0]
+    B=pars[1]
+    C=pars[2]
+    S=pars[3]
     
     cdef DTYPE_t prob, ydiff, yfit, xdiff, xfit, xerr, yerr, theta, orthDistance, phi, orthError, orthSigTotalSq, sqrt_orthSigTotalSq 
     cdef int i, k
@@ -105,6 +111,81 @@ def fastOrthogonalLikelihood(DTYPE_t A, DTYPE_t B, DTYPE_t C, DTYPE_t S,
         # (see the python side code in MCMCFit)
         #probs=probs*prob
         #print prob
+        if prob > 0:
+            probs=probs+math.log10(prob)
+    
+    #print probs
+
+    return probs, probsArray
+
+#-------------------------------------------------------------------------------------------------------------
+@cython.boundscheck(False) # turn off bounds-checking for entire function
+def fastBisectorLikelihood(np.ndarray[DTYPE_t, ndim=1] pars, 
+                           np.ndarray[DTYPE_t, ndim=1] log10L, np.ndarray[DTYPE_t, ndim=1] log10LErrPlus, np.ndarray[DTYPE_t, ndim=1] log10LErrMinus,
+                           np.ndarray[DTYPE_t, ndim=1] log10T, np.ndarray[DTYPE_t, ndim=1] log10TErrPlus, np.ndarray[DTYPE_t, ndim=1] log10TErrMinus,
+                           np.ndarray[DTYPE_t, ndim=1] log10RedshiftEvo, np.ndarray[DTYPE_t, ndim=1] detP):
+    """This is now defined using a bisector method.
+    NOTE: Now zpx is assumed applied before, i.e. feed in log10T-zpx, not log10T
+
+    
+    """
+    
+    cdef DTYPE_t A, B, C, Sx, Sy
+    A=pars[0]
+    B=pars[1]
+    C=pars[2]
+    Sx=pars[3]
+    Sy=pars[4]
+           
+    cdef DTYPE_t prob, prob_x, prob_y, ydiff, yfit, xdiff, xfit, xErrTotalSq, sqrt_xErrTotalSq, yErrTotalSq, sqrt_yErrTotalSq
+    cdef int i, k
+    cdef DTYPE_t probs
+
+    cdef DTYPE_t root2=1.4142135623730951
+    cdef DTYPE_t root2pi=2.5066282746310002
+    
+    cdef DTYPE_t err
+ 
+    probs=0.0
+    probsArray=np.zeros(log10L.shape[0]) # for debugging
+    for k in range(log10L.shape[0]):
+
+        yfit=A+B*log10T[k]+C*log10RedshiftEvo[k]
+        ydiff=log10L[k]-yfit
+
+        xfit=(log10L[k]-A-C*log10RedshiftEvo[k])/B
+        xdiff=log10T[k]-xfit
+
+        if xdiff < 0:
+            xerr=log10TErrPlus[k]
+        else:
+            xerr=log10TErrMinus[k]
+        if ydiff < 0:
+            yerr=log10LErrPlus[k]
+        else:
+            yerr=log10LErrMinus[k]
+
+        xErrTotalSq=xerr*xerr + Sx*Sx
+        yErrTotalSq=yerr*yerr + Sy*Sy
+  
+        sqrt_xErrTotalSq=math.sqrt(xErrTotalSq)
+        sqrt_yErrTotalSq=math.sqrt(yErrTotalSq)
+
+        prob_x = (1./(root2pi*sqrt_xErrTotalSq)) * math.exp(-(xdiff*xdiff)/(2.0*xErrTotalSq))
+        prob_y = (1./(root2pi*sqrt_yErrTotalSq)) * math.exp(-(ydiff*ydiff)/(2.0*yErrTotalSq))
+
+        # apply selection function probability
+        prob=(prob_x * prob_y) * detP[k]
+    
+        # for debugging
+        probsArray[k]=prob
+
+        #print k, prob, orthError, S, xerr, yerr, log10T[k], log10L[k]
+
+        # Running product of all probabilities
+        # NOTE: Gone log likelihood here because we get overflows for samples of 1000s of sim clusters
+        # This means when we decide if we want to keep samples, subtract prob ratios and use alpha > 0
+        # (see the python side code in MCMCFit
         if prob > 0:
             probs=probs+math.log10(prob)
     

@@ -8,7 +8,7 @@
 refit=True
 
 # Which likelihood?
-method="orthogonal"
+method="bisector"
 
 # Data options - data now need to be provided in a .fits table
 inFileName="XCSDR1_2012-05-02.fits"

@@ -130,70 +130,52 @@ def selectStartParsFromPriors(settingsDict):
     
     """
     
-    A0=np.random.uniform(settingsDict['prior_A_MIN'], settingsDict['prior_A_MAX'])
-    B0=np.random.uniform(settingsDict['prior_B_MIN'], settingsDict['prior_B_MAX'])
-    C0=np.random.uniform(settingsDict['prior_C_MIN'], settingsDict['prior_C_MAX'])
-    S0=np.random.uniform(settingsDict['prior_S_MIN'], settingsDict['prior_S_MAX'])
+    variables=settingsDict['variables']
     
+    pars=np.zeros(len(variables))
+    for i in range(len(variables)):
+        v=variables[i]
+        if settingsDict['%sFit' % (v)] == 'fixed':
+            pars[i]=settingsDict['%s0' % (v)] 
+        else:
+            pars[i]=np.random.uniform(settingsDict['prior_%s_MIN' % (v)], settingsDict['prior_%s_MAX' % (v)])
+
     # This makes sure that if we're testing by swapping axes, we can use the same prior ranges
     if 'swapAxes' in settingsDict.keys() and settingsDict['swapAxes'] == True:
-        b=1.0/B0
-        a=-A0/B0
-        A0=a
-        B0=b
+        b=1.0/pars[1]
+        a=-pars[0]/pars[1]
+        pars[0]=a
+        pars[1]=b
     
-    if settingsDict['AFit'] == 'fixed':
-        A0=settingsDict['A0']
-    if settingsDict['BFit'] == 'fixed':
-        B0=settingsDict['B0']
-    if settingsDict['CFit'] == 'fixed':
-        C0=settingsDict['C0']
-    if settingsDict['SFit'] == 'fixed':
-        S0=settingsDict['S0']
-        
-    return [A0, B0, C0, S0]
+    return pars
 
 #-------------------------------------------------------------------------------------------------------------
-def getPPrior(pA, pB, pC, pS, settingsDict):
+def getPPrior(pPars, settingsDict):
     """Gets prior probability.
     
     """
     
+    variables=settingsDict['variables']
+
     # This makes sure that if we're testing by swapping axes, we can use the same prior ranges
     if 'swapAxes' in settingsDict.keys() and settingsDict['swapAxes'] == True:
-        b=1.0/pB
-        a=-pA/pB
-        pA=a
-        pB=b
-    
-    if pA > settingsDict['prior_A_MIN'] and pA < settingsDict['prior_A_MAX']:
-        priorA=1.0
-    else:
-        priorA=0.0
-    if pB > settingsDict['prior_B_MIN'] and pB < settingsDict['prior_B_MAX']:
-        priorB=1.0
-    else:
-        priorB=0.0
-    if pC > settingsDict['prior_C_MIN'] and pC < settingsDict['prior_C_MAX']:
-        priorC=1.0
-    else:
-        priorC=0.0
-    if pS > settingsDict['prior_S_MIN'] and pS < settingsDict['prior_S_MAX']:
-        priorS=1.0
-    else:
-        priorS=0.0
-    
-    # Fixed parameters must surely be within the priors...
-    if settingsDict['AFit'] == 'fixed':
-        priorA=1.0
-    if settingsDict['BFit'] == 'fixed':
-        priorB=1.0
-    if settingsDict['CFit'] == 'fixed':
-        priorC=1.0
-    if settingsDict['SFit'] == 'fixed':
-        priorS=1.0
-    
-    pPrior=priorA*priorB*priorC*priorS
+        b=1.0/pPars[1]
+        a=-pPars[0]/pPars[1]
+        pPars[0]=a
+        pPars[1]=b
+
+    priors=np.zeros(len(variables))
+    for i in range(len(variables)):
+        v=variables[i]
+        if pPars[i] > settingsDict['prior_%s_MIN' % (v)] and pPars[i] < settingsDict['prior_%s_MAX' % (v)]:
+            priors[i]=1.0
+        else:
+            priors[i]=0.0
+        # Fixed parameters must surely be within the priors...
+        if settingsDict['%sFit' % (v)] == 'fixed':
+            priors[i]=1.0
+        
+    pPrior=np.product(priors)
         
     return pPrior
 
@@ -365,10 +347,11 @@ def sampleGetter(settingsDict, sampleDef, outDir):
     
 #-------------------------------------------------------------------------------------------------------------
 def MCMCFit(settingsDict, tab):
-    """My attempt at fitting using MCMC and maximum likelihood. The likelihood function follows the appendix 
-    to Weiner et al. (2006, ApJ, 653, 1049).
+    """My attempt at fitting using MCMC and maximum likelihood.
     
     settingsDict = dictionary containing MCMC parameters and settings
+    
+    You can choose whether to use the likelihood for 'bisector' or 'orthogonal' fitting using the 'method' key.
     
     """
     
@@ -378,13 +361,30 @@ def MCMCFit(settingsDict, tab):
     else:
         swapAxes=False
     print "... swapAxes = ", swapAxes
+
+    # Choice of method
+    method=settingsDict['method']
+    if method == 'orthogonal':
+        likelihood=csr.fastOrthogonalLikelihood
+        variables=['A', 'B', 'C', 'S']
+        numFreePars=4
+    elif method == 'bisector':
+        likelihood=csr.fastBisectorLikelihood
+        variables=['A', 'B', 'C', 'Sx', 'Sy']
+        numFreePars=5
+    
+    settingsDict['variables']=variables         # A handy place to store this for cutting down code elsewhere
+    
+    scales=[]
+    for v in variables:
+        scales.append(settingsDict['%sScale' % (v)])
         
     # Start by writing this in python, but calling the likelihood function in cython
     # MCMC parameters
     numSamples=settingsDict['numSamples']       # Total number of random steps over likelihood surface
     burnSamples=settingsDict['burnSamples']     # Throw away initial bunch of this many samples
     thinning=settingsDict['thinning']           # Keep only every ith sample - good in some ways, bad in others
-      
+        
     # Choice of evolution models
     if settingsDict['evoModel'] == '1+z':
         log10RedshiftEvo=np.log10(tab[settingsDict['redshiftColumnName']]+1)
@@ -396,13 +396,9 @@ def MCMCFit(settingsDict, tab):
     # To start with, we're going to use the same proposal distribution for everything
     # But later on we could dig out the correlated random numbers code to generate random parameter values that
     # satisfy the covariance we see between parameters, which would speed things up.
-    scales=[settingsDict['AScale'], 
-            settingsDict['BScale'],
-            settingsDict['CScale'],
-            settingsDict['SScale']]
-    cA, cB, cC, cS=selectStartParsFromPriors(settingsDict)
+    cPars=selectStartParsFromPriors(settingsDict)
 
-    print "... starting values [A, B, C, S] = [%.2f, %.2f, %.2f, %.2f]" % (cA, cB, cC, cS)
+    #print "... starting values [A, B, C, S] = [%.2f, %.2f, %.2f, %.2f]" % (cA, cB, cC, cS)
 
     # Byte swapping festival to keep cython happy
     yToFit=byteSwapArr(tab['yToFit'])
@@ -414,15 +410,11 @@ def MCMCFit(settingsDict, tab):
     detP=byteSwapArr(tab['detP'])
     
     if swapAxes == False:
-        cProb, probArray=csr.fastOrthogonalLikelihood(cA, cB, cC, cS,                                                
-                                                      yToFit, yErrToFitPlus, yErrToFitMinus,
-                                                      xToFit, xErrToFitPlus, xErrToFitMinus, log10RedshiftEvo, 
-                                                      detP)  
+        cProb, probArray=likelihood(cPars, yToFit, yErrToFitPlus, yErrToFitMinus, xToFit, xErrToFitPlus,
+                                    xErrToFitMinus, log10RedshiftEvo, detP)  
     else:
-        cProb, probArray=csr.fastOrthogonalLikelihood(cA, cB, cC, cS,                                                
-                                                      xToFit, xErrToFitPlus, xErrToFitMinus,
-                                                      yToFit, yErrToFitPlus, yErrToFitMinus, log10RedshiftEvo,
-                                                      detP) 
+        cProb, probArray=likelihood(cPars, xToFit, xErrToFitPlus, xErrToFitMinus, yToFit, yErrToFitPlus,
+                                    yErrToFitMinus, log10RedshiftEvo, detP) 
                                                    
     if cProb == 0:
         raise Exception, "initial position in MCMC chain has zero probability - change initial values/fiddle with priors in .par file?"
@@ -439,17 +431,13 @@ def MCMCFit(settingsDict, tab):
             if k == j*tenPercent:
                 print "... "+str(j*10)+"% complete ..."
                 
-        pA, pB, pC, pS=makeProposal([cA, cB, cC, cS], scales, settingsDict)
+        pPars=makeProposal(cPars, scales, settingsDict)
         if swapAxes == False:
-            pProb, probArray=csr.fastOrthogonalLikelihood(pA, pB, pC, pS,                                                
-                                                          yToFit, yErrToFitPlus, yErrToFitMinus,
-                                                          xToFit, xErrToFitPlus, xErrToFitMinus, log10RedshiftEvo,
-                                                          detP)   
+            pProb, probArray=likelihood(pPars, yToFit, yErrToFitPlus, yErrToFitMinus, xToFit, xErrToFitPlus,
+                                        xErrToFitMinus, log10RedshiftEvo, detP)   
         else:
-            pProb, probArray=csr.fastOrthogonalLikelihood(pA, pB, pC, pS,                                                
-                                                          xToFit, xErrToFitPlus, xErrToFitMinus,
-                                                          yToFit, yErrToFitPlus, yErrToFitMinus, log10RedshiftEvo,
-                                                          detP)                                                         
+            pProb, probArray=likelihood(pPars, xToFit, xErrToFitPlus, xErrToFitMinus, yToFit, yErrToFitPlus,
+                                        yErrToFitMinus, log10RedshiftEvo, detP)                                                         
                                                         
         if np.isinf(pProb) == True:
             print "Hmm - infinite probability?"
@@ -468,16 +456,16 @@ def MCMCFit(settingsDict, tab):
         
         # Our prior is uniform, so we're really just using it to force the answer into a range
         # i.e. if it's not 1.0, then something has strayed out of the box.
-        pPrior=getPPrior(pA, pB, pC, pS, settingsDict)
+        pPrior=getPPrior(pPars, settingsDict)
 
         if acceptProposal == True and pPrior == 1.0:
-            cA, cB, cC, cS=pA, pB, pC, pS
+            cPars=pPars
             cProb=pProb
             # Only keep samples after burning in and also thin as we go along
             if k > burnSamples and k % thinning == 0:                     
                 # If we want to plot the trace (i.e. to check mixing) then we want to store these always in some fashion
                 # As it is, we're only keeping the ones that are drawn from the probability distributions
-                allPars.append([cA, cB, cC, cS])
+                allPars.append(cPars)
                 likelihoods.append(pProb)
     
     allPars=np.array(allPars)
@@ -502,47 +490,35 @@ def MCMCFit(settingsDict, tab):
     zStatistic=np.nan_to_num(zStatistic)
     
     # Zap entries in here that are fixed (avoids round off or div 0 making them look large when we don't care)
-    numFreePars=4
-    if settingsDict['AFit'] == 'fixed':
-        zStatistic[0]=0.0
-        numFreePars=numFreePars-1
-    if settingsDict['BFit'] == 'fixed':
-        zStatistic[1]=0.0
-        numFreePars=numFreePars-1
-    if settingsDict['CFit'] == 'fixed':
-        zStatistic[2]=0.0
-        numFreePars=numFreePars-1
-    if settingsDict['SFit'] == 'fixed':
-        zStatistic[3]=0.0
-        numFreePars=numFreePars-1
+    for i in range(len(variables)):
+        v=variables[i]
+        if settingsDict['%sFit' % (v)] == 'fixed':
+            zStatistic[i]=0.0
+            numFreePars=numFreePars-1
         
     # Max likelihood values are simply the mean of the values in the probability distribution
     # 1-sigma errors are similarly easy (could also use calc1SigmaError routine, but this is quicker)
-    mlA=allPars[:, 0].mean()
-    mlB=allPars[:, 1].mean()
-    mlC=allPars[:, 2].mean()
-    mlS=allPars[:, 3].mean()
-    mlAErr=calc68Percentile(allPars[:, 0])
-    mlBErr=calc68Percentile(allPars[:, 1])
-    mlCErr=calc68Percentile(allPars[:, 2])
-    mlSErr=calc68Percentile(allPars[:, 3])
- 
-    # Scott's translation of S into scatter in LX at fixed T
-    s=allPars[:, 3]/np.cos(np.arctan(allPars[:, 1]))
-    mls=s.mean()
-    mlsErr=calc68Percentile(s)
+    resultsDict={}
+    for i in range(len(variables)):
+        v=variables[i]
+        resultsDict['%s' % (v)]=allPars[:, i].mean()
+        resultsDict['%sErr' % (v)]=calc68Percentile(allPars[:, i])
+    
+    # Scott's translation of orthogonal scatter S into scatter in y-variable at fixed x-variable
+    if method == 'orthogonal':
+        s=allPars[:, 3]/np.cos(np.arctan(allPars[:, 1]))
+        resultsDict['s']=s.mean()
+        resultsDict['sErr']=calc68Percentile(s)
     
     # We have numFreePars above
     lnL=np.log(np.power(10, likelihoods))
-    AIC=2*numFreePars-2*lnL.max()
-    AICc=AIC+(2*numFreePars*(numFreePars+1))/(float(len(tab))-numFreePars-1)
-            
-    return {'A': mlA, 'AErr': mlAErr, 
-            'B': mlB, 'BErr': mlBErr, 
-            'C': mlC, 'CErr': mlCErr, 
-            'S': mlS, 'SErr': mlSErr,
-            's': mls, 'sErr': mlsErr,
-            'pars': allPars, 'zStatistic': zStatistic, 'AIC': AIC, 'AICc': AICc}
+    resultsDict['AIC']=2*numFreePars-2*lnL.max()
+    resultsDict['AICc']=resultsDict['AIC']+(2*numFreePars*(numFreePars+1))/(float(len(tab))-numFreePars-1)
+    
+    resultsDict['pars']=allPars
+    resultsDict['zStatistic']=zStatistic
+    
+    return resultsDict
             
 #-------------------------------------------------------------------------------------------------------------
 def makeProposal(pars, scales, settingsDict):
@@ -578,9 +554,15 @@ def makeProposal(pars, scales, settingsDict):
         prop[1]=settingsDict['B0']        
     if settingsDict['CFit'] == 'fixed':
         prop[2]=settingsDict['C0']
-    if settingsDict['SFit'] == 'fixed':
-        prop[3]=settingsDict['S0']
-    
+    if settingsDict['method'] == 'orthogonal':
+        if settingsDict['SFit'] == 'fixed':
+            prop[3]=settingsDict['S0']
+    elif settingsDict['method'] == 'bisector':
+        if settingsDict['SxFit'] == 'fixed':
+            prop[3]=settingsDict['Sx0']
+        if settingsDict['SyFit'] == 'fixed':
+            prop[4]=settingsDict['Sy0']     
+        
     return prop
 
 #-------------------------------------------------------------------------------------------------------------
@@ -591,8 +573,8 @@ def make1DProbDensityPlots(fitResults, settingsDict, outDir):
     
     sigmaScale=5.0
     bins=30
-    variables=['A', 'B', 'C', 'S']
-    axes=[0, 1, 2, 3]
+    variables=settingsDict['variables']
+    axes=range(len(variables))
     
     # Individual plots
     #for v, a in zip(variables, axes):
@@ -858,8 +840,13 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
             plt.plot(row[xColumnName], [pY], 'D', color = (row['detP'], row['detP'], row['detP'])) 
 
         
-    plotRange=np.linspace(0.1*sampleTab[xColumnName].min(), 10*sampleTab[xColumnName].max(), 100)
-    yFit=settingsDict['yPivot']*np.power(10, fitResults['A'])*np.power((plotRange/xPivot), fitResults['B'])
+    plotRange=np.linspace(settingsDict['xPlotMin'], settingsDict['xPlotMax'], 100)
+    if xTakeLog10 == True and yTakeLog10 == True:
+        yFit=settingsDict['yPivot']*np.power(10, fitResults['A'])*np.power((plotRange/xPivot), fitResults['B'])
+    elif xTakeLog10 == False and yTakeLog10 == False:
+        yFit=settingsDict['yPivot']*(fitResults['A']+fitResults['B']*(plotRange/xPivot))
+    else:
+        raise Exception, "add semilogx, semilogy fit line code"
     
     fitLabel='%s (%s) = 10$^{%.2f \pm %.2f}$ (%s/%.1f %s)$^{%.2f \pm %.2f}$' % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'], fitResults['A'], fitResults['AErr'], settingsDict['xPlotLabel'], xPivot, settingsDict['xPlotLabelUnits'], fitResults['B'], fitResults['BErr'])
 
@@ -1113,16 +1100,15 @@ def makeScalingRelationPlots_sideBySide(sampleDefs, outDir, settingsDict):
     plt.close()
     
 #-------------------------------------------------------------------------------------------------------------
-def makeRoundedPlotLabelStrings(fitResults, numSigFig = 1):
+def makeRoundedPlotLabelStrings(fitResults, variables, numSigFig = 1):
     """Add plot labels to fitResults, to given number of sig fig, taking care of rounding
     
     NOTE: disabled the rounding for now
     """
     
     # Not rounding, just dp not sf
-    parLabels=['A', 'B', 'C', 'S']
-    dps=[2, 2, 1, 3]
-    for p, dp in zip(parLabels, dps):
+    dps=[2, 2, 1, 3, 3]
+    for p, dp in zip(variables, dps):
         if fitResults['%sErr' % (p)] != 0:
             fmt="%."+str(dp)+"f"
             valStr=fmt % (fitResults['%s' % (p)])
