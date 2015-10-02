@@ -773,7 +773,12 @@ def calc68Percentile(arr):
     res=np.abs(arr-np.median(arr))
     res=np.sort(res)
     index=int(round(0.683*arr.shape[0]))
-    err=res[index]
+    try:
+        err=res[index]
+    except:
+        print "index error?"
+        IPython.embed()
+        sys.exit()
     
     return err
         

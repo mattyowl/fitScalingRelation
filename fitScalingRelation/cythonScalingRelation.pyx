@@ -75,22 +75,14 @@ def fastOrthogonalLikelihood(np.ndarray[DTYPE_t, ndim=1] pars,
         else:
             yerr=log10LErrMinus[k]
 
-        phi=np.pi-theta  # was 180 - pi/2.0 flips the offset to the other axis
-
         # As in the paper - ellipse projection
-        #orthError=abs((xerr*yerr) / math.sqrt((xerr*math.sin(phi))**2 + (yerr*math.cos(phi))**2))
-        orthError=(xerr*yerr) / math.sqrt((xerr*math.sin(phi))**2 + (yerr*math.cos(phi))**2)
+        #phi=np.pi-theta  # was 180 - pi/2.0 flips the offset to the other axis
+        #orthError=(xerr*yerr) / math.sqrt((xerr*math.sin(phi))**2 + (yerr*math.cos(phi))**2)
         #print phi, theta, xerr, yerr, B, orthError
 
-
-        # Or... scale invariant? - this is so, so, wrong
-        #xrel=xerr/xdiff
-        #yrel=yerr/ydiff
-        #rrelx=math.sin(theta)*xrel 
-        #rrely=math.cos(theta)*yrel
-        #orthError2=rrelx*orthDistance
-        #print rrelx, rrely, orthError2, orthError
-        #print oldOrthError, orthError, xerr, yerr
+        # ^^^ Not sure why (xerr*yerr) above (lost in mists of time)... below added 02/10/15
+        phi=np.pi/2.0 - theta
+        orthError=math.sqrt(xerr*xerr*math.cos(phi)**2 + yerr*yerr*math.sin(phi)**2)
 
         orthSigTotalSq=orthError*orthError + S*S
         sqrt_orthSigTotalSq=math.sqrt(orthSigTotalSq)
