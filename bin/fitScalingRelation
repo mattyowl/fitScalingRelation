@@ -27,6 +27,7 @@ import os
 import sys
 import pickle
 import fitScalingRelation as fsr
+#import IPython
  
 #-------------------------------------------------------------------------------------------------------------
 # Main
@@ -125,8 +126,27 @@ else:
                 fsr.makePaperContourPlots(fitResults, parDict, outDir)
             except:
                 print "WARNING: failed to make fancy 1d, 2d prob distribution plots (S too small?)"
-    
+
+        # Output parameters to a .txt file
+        outFile=file(outDir+os.path.sep+"results.txt", "w")
+        outFile.write("xPivot = %.3e\n" % (parDict['xPivot']))
+        outFile.write("yPivot = %.3e\n" % (parDict['yPivot']))
+        if parDict['method'] == 'orthogonal':
+            variables=['A', 'B', 'C', 'S', 's']
+        elif parDict['method'] == 'bisector':
+            variables=['A', 'B', 'C', 'Sx', 'Sy']
+        for v in variables:
+            outFile.write("%s = %.3f\n" % (v, fitResults['%s' % (v)]))
+            outFile.write("%sErr = %.3f\n" % (v, fitResults['%sErr' % (v)]))
+        #outFile.write("zStatistic = %.3f\n" % (fitResults['zStatistic']))
+        if 'AIC' in fitResults.keys():
+            outFile.write("AIC = %.3f\n" % (fitResults['AIC']))
+            outFile.write("AICc = %.3f\n" % (fitResults['AICc']))
+        outFile.close()
+                 
     # Scaling relation plots side by side, e.g., z bins
     if len(sampleDefs) > 1:
         fsr.makeScalingRelationPlots_sideBySide(sampleDefs, rootOutDir, parDict)
+    
+    
     
