@@ -75,6 +75,12 @@ else:
             pickler=pickle.Pickler(pickleFile)
             pickler.dump(fitResults)
         else:
+            method=parDict['method']
+            if method == 'orthogonal':
+                variables=['A', 'B', 'C', 'S']
+            elif method == 'bisector':
+                variables=['A', 'B', 'C', 'Sx', 'Sy']
+            parDict['variables']=variables
             pickleFile=file(pickleFileName, "r")
             unpickler=pickle.Unpickler(pickleFile)
             fitResults=unpickler.load()
@@ -126,7 +132,7 @@ else:
                 fsr.makePaperContourPlots(fitResults, parDict, outDir)
             except:
                 print "WARNING: failed to make fancy 1d, 2d prob distribution plots (S too small?)"
-
+                
         # Output parameters to a .txt file
         outFile=file(outDir+os.path.sep+"results.txt", "w")
         outFile.write("xPivot = %.3e\n" % (parDict['xPivot']))
