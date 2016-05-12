@@ -28,12 +28,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-Modified here to fit for redshift evolution
+Modified here to fit for redshift evolution, and allow fixing of parameters.
 
 """
 
 import numpy as np
-#import IPython
+import IPython
 
 def task_manager(conn):
     chain = None
@@ -56,10 +56,12 @@ def task_manager(conn):
             raise ValueError("Invalid task")
 
 class Chain(object):
-    def __init__(self, x, y, z, xsig, ysig, xycov, delta, K, nchains, rng=None):
+    def __init__(self, x, y, z, xsig, ysig, xycov, delta, K, nchains, parDict = {}, rng=None):
         self.x = np.array(x, dtype=float)
         self.y = np.array(y, dtype=float)
         self.z = np.array(z, dtype=float)
+        
+        self.parDict=parDict # tells us whether to fix some variables
         
         if xsig is None:
             self.xsig = np.zeros_like(self.x)
@@ -141,6 +143,14 @@ class Chain(object):
         self.gamma += coef[2] * np.sqrt(1.0/chisqr)
         self.sigsqr *= 0.5 * N / self.rng.chisquare(0.5*N)
 
+        # Override any of the above if a parameter is set to be fixed
+        if self.parDict['AFit'] == 'fixed':
+            self.alpha=self.parDict['A0']
+        if self.parDict['BFit'] == 'fixed':
+            self.beta=self.parDict['B0']
+        if self.parDict['CFit'] == 'fixed':
+            self.gamma=self.parDict['C0']
+        
         # Now get the values for the mixture parameters, first do prior params
         self.mu0min = min(x)
         self.mu0max = max(x)
@@ -257,7 +267,14 @@ class Chain(object):
         chat = np.dot(np.dot(XTXinv, X.T), self.eta)
         # Eqn (75)
         self.alpha, self.beta, self.gamma = self.rng.multivariate_normal(chat, Sigma_chat)
-
+        # If any parameters are fixed...
+        if self.parDict['AFit'] == 'fixed':
+            self.alpha=self.parDict['A0']
+        if self.parDict['BFit'] == 'fixed':
+            self.beta=self.parDict['B0']
+        if self.parDict['CFit'] == 'fixed':
+            self.gamma=self.parDict['C0']
+            
     def update_sigsqr(self):  # Step 7
         # Eqn (80)
         ssqr = 1.0/(self.N-2) * np.sum((self.eta - self.alpha - self.beta * self.xi - self.gamma * self.z)**2)
@@ -439,10 +456,16 @@ class LinMixScalingRelation(object):
                     independent variables `xi` and `eta`.
     """
     def __init__(self, x, y, z, xsig=None, ysig=None, xycov=None, delta=None, K=3,
-                 nchains=4, parallelize=True):
+                 nchains=4, parallelize=True, parDict = {}):
+        """parDict is a dictionary of fitScalingRelation parameters, used to control fixing of
+        parameter values etc.
+        
+        """
         self.nchains = nchains
         self.parallelize = parallelize
-
+        
+        self.parDict=parDict
+        
         if self.parallelize:
             # Will place 1 chain in 1 thread.
             from multiprocessing import Process, Pipe
@@ -478,7 +501,7 @@ class LinMixScalingRelation(object):
         else:
             self._chains = []
             for i in xrange(self.nchains):
-                self._chains.append(Chain(x, y, z, xsig, ysig, xycov, delta, K, self.nchains))
+                self._chains.append(Chain(x, y, z, xsig, ysig, xycov, delta, K, self.nchains, parDict = parDict))
                 self._chains[-1].initial_guess()
 
     def _get_psi(self):
@@ -578,6 +601,14 @@ class LinMixScalingRelation(object):
         for i in xrange(0, miniter, checkiter):
             self._step(checkiter)
             Rhat = self._get_Rhat()
+            
+            # If we fixed parameters, we don't want to take Rhat nans as a sign of non-convergence
+            if self.parDict['AFit'] == 'fixed':
+                Rhat[0]=1.0
+            if self.parDict['BFit'] == 'fixed':
+                Rhat[1]=1.0
+            if self.parDict['CFit'] == 'fixed':
+                Rhat[2]=1.0
 
             if not silent:
                 print
@@ -594,6 +625,15 @@ class LinMixScalingRelation(object):
             self._step(checkiter)
 
             Rhat = self._get_Rhat()
+            
+            # If we fixed parameters, we don't want to take Rhat nans as a sign of non-convergence
+            if self.parDict['AFit'] == 'fixed':
+                Rhat[0]=1.0
+            if self.parDict['BFit'] == 'fixed':
+                Rhat[1]=1.0
+            if self.parDict['CFit'] == 'fixed':
+                Rhat[2]=1.0
+                
             if not silent:
                 print
                 print "Iteration: ", i+checkiter
