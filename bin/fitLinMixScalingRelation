@@ -65,8 +65,15 @@ else:
         y=stab['yToFit']
         xsig=stab['xErrToFitPlus']
         ysig=stab['yErrToFitPlus']
-        z=np.log10(1+stab['redshift'])
 
+        # Choice of evolution models
+        if parDict['evoModel'] == '1+z':
+            z=np.log10(stab[parDict['redshiftColumnName']]+1)
+        elif parDict['evoModel'] == 'E(z)':
+            z=np.log10(stab['E(z)'])
+        else:
+            raise Exception, "didn't understand evoModel '%s'" % (evoModel)
+    
         # I think this will fall over with 1 chain
         # Set parallelize = False if debugging
         lm = linmixScalingRelation.LinMixScalingRelation(x, y, z, xsig=xsig, ysig=ysig, parallelize = True)
