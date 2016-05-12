@@ -132,6 +132,7 @@ else:
                 
         # Output parameters to a .txt file
         outFile=file(outDir+os.path.sep+"results.txt", "w")
+        outFile.write("N = %d\n" % (len(stab)))
         outFile.write("xPivot = %.3e\n" % (parDict['xPivot']))
         outFile.write("yPivot = %.3e\n" % (parDict['yPivot']))
         if parDict['method'] == 'orthogonal':

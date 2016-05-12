@@ -76,7 +76,7 @@ else:
     
         # I think this will fall over with 1 chain
         # Set parallelize = False if debugging
-        lm = linmixScalingRelation.LinMixScalingRelation(x, y, z, xsig=xsig, ysig=ysig, parallelize = True,
+        lm = linmixScalingRelation.LinMixScalingRelation(x, y, z, xsig=xsig, ysig=ysig, parallelize = False,
                                                          parDict = parDict)
         lm.run_mcmc(miniter=10000, maxiter=20000)
 
@@ -138,6 +138,7 @@ else:
                 
         # Output parameters to a .txt file
         outFile=file(outDir+os.path.sep+"results.txt", "w")
+        outFile.write("N = %d\n" % (len(stab)))
         outFile.write("xPivot = %.3e\n" % (parDict['xPivot']))
         outFile.write("yPivot = %.3e\n" % (parDict['yPivot']))
         for v in variables:
