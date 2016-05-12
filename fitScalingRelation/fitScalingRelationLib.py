@@ -1237,7 +1237,7 @@ def makePaperContourPlots(fitResults, parDict, outDir):
     As=np.linspace(mlA-5.0*mlAErr-math.fmod(mlA-5.0*mlAErr, 0.1), mlA+5.0*mlAErr-math.fmod(mlA+5.0*mlAErr, 0.1), 81)
     Bs=np.linspace(mlB-5.0*mlBErr-math.fmod(mlB-5.0*mlBErr, 0.1), mlB+5.0*mlBErr-math.fmod(mlB+5.0*mlBErr, 0.1), 81)
     Cs=np.linspace(mlC-5.0*mlCErr-math.fmod(mlC-5.0*mlCErr, 0.1), mlC+5.0*mlCErr-math.fmod(mlC+5.0*mlCErr, 0.1), 81)
-    Ss=np.linspace(mlS-5.0*mlSErr-math.fmod(mlS-5.0*mlSErr, 0.01), mlS+6.0*mlSErr-math.fmod(mlS+6.0*mlSErr, 0.01), 81)
+    Ss=np.linspace(mlS-5.0*mlSErr-math.fmod(mlS-5.0*mlSErr, 0.1), mlS+6.0*mlSErr-math.fmod(mlS+5.0*mlSErr, 0.1), 81)
     
     # Steps for tick label plotting adjustment
     AStep=0.2
@@ -1375,8 +1375,14 @@ def probContourPlot_subPlot(par1Values, par2Values, par1Label, par2Label, par1Ti
     sigma1Level=calc2DProbThreshold(PDist2D, 0.683)
     sigma2Level=calc2DProbThreshold(PDist2D, 0.95)
     
-    plt.contour(PDist2D, [sigma1Level, sigma2Level], colors = 'k')
-            
+    # Apparently, we need to switch the order in newer versions of matplotlib
+    try:
+        plt.contour(PDist2D, [sigma2Level, sigma1Level], colors = 'k')
+    except:
+        print "contour problem"
+        IPython.embed()
+        sys.exit()
+        
     # Save plot - trim down area first (?) and add axes labels
     plt.plot(interpolate.splev(mlPar2, tck2), interpolate.splev(mlPar1, tck1), 'k*', 
                label = "%s = %.2f $\pm$ %.2f, %s = %.2f $\pm$ %.2f" % (par1Label, mlPar1, mlPar1Err, par2Label, mlPar2, mlPar2Err))

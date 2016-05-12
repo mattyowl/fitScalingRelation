@@ -2,9 +2,10 @@
 
 """
 
-    The MCMC fitting code used in Hilton et al. (2012), in a more general purpose form
+    Driver program for fitting scaling relation using the Kelly (2007) method,
+    using python code from Joshua Meyers (https://github.com/jmeyers314/linmix).
 
-    Copyright 2015 Matt Hilton (matt.hilton@mykolab.com)
+    Copyright 2016 Matt Hilton (matt.hilton@mykolab.com)
     
     This file is part of fitScalingRelation.
 
@@ -25,80 +26,77 @@
 
 import os
 import sys
-import pickle
+import atpy
+import numpy as np
+import pylab as plt
+from scipy import stats
+import IPython
+from fitScalingRelation import linmixScalingRelation
 from fitScalingRelation import fitScalingRelationLib as fsr
-#import IPython
- 
+
 #-------------------------------------------------------------------------------------------------------------
 # Main
 if len(sys.argv) < 2:
-    print "Run: % fitScalingRelation parFileName"
+    print "Run: % fitLinMixScalingRelation parFileName"
 else:
     
     parFileName=sys.argv[1]
     parDict=fsr.ParametersDict()
     parDict.read_from_file(parFileName)
-    
-    # Options
-    refit=parDict['refit']
 
     rootOutDir=parFileName.replace(".par", "")
-    
+
     if os.path.exists(rootOutDir) == False:
         os.makedirs(rootOutDir)
-
-    # Copy .par file into dir so we can track what we used
-    os.system("cp %s %s/" % (parFileName, rootOutDir))
-    
+            
     # Define samples
     sampleDefs=parDict['sampleDefs']
 
     # Fits and plots for each subsample
     for sample in sampleDefs:
-                    
-        print ">>> Fitting sample %s ..." % (sample['label'])
         
-        # Now saving all plots for a given sample under a subdir
         outDir=rootOutDir+os.path.sep+sample['label']
         if os.path.exists(outDir) == False:
             os.makedirs(outDir)
-        
-        # Get table we can fit
-        stab=fsr.sampleGetter(parDict, sample, outDir)
-        print "... number of objects in sample = %d" % (len(stab))
                 
-        # Makes fits
-        pickleFileName=outDir+os.path.sep+"fitResults_"+sample['label']+".pickled"
-        if os.path.exists(pickleFileName) == False or refit == True:
-            fitResults=fsr.MCMCFit(parDict, stab)
-            pickleFile=file(pickleFileName, "w")
-            pickler=pickle.Pickler(pickleFile)
-            pickler.dump(fitResults)
-        else:
-            method=parDict['method']
-            if method == 'orthogonal':
-                variables=['A', 'B', 'C', 'S']
-            elif method == 'bisector':
-                variables=['A', 'B', 'C', 'Sx', 'Sy']
-            parDict['variables']=variables
-            pickleFile=file(pickleFileName, "r")
-            unpickler=pickle.Unpickler(pickleFile)
-            fitResults=unpickler.load()
+        stab=fsr.sampleGetter(parDict, sample, outDir)
+                
+        x=stab['xToFit']
+        y=stab['yToFit']
+        xsig=stab['xErrToFitPlus']
+        ysig=stab['yErrToFitPlus']
+        z=np.log10(1+stab['redshift'])
+
+        # I think this will fall over with 1 chain
+        # Set parallelize = False if debugging
+        lm = linmixScalingRelation.LinMixScalingRelation(x, y, z, xsig=xsig, ysig=ysig, parallelize = True)
+        lm.run_mcmc(miniter=10000, maxiter=20000)
+
+        A=lm.chain['alpha'].mean()
+        AErr=lm.chain['alpha'].std()
+        B=lm.chain['beta'].mean()
+        BErr=lm.chain['beta'].std()
+        C=lm.chain['gamma'].mean()
+        CErr=lm.chain['gamma'].std()
+        S=np.sqrt(lm.chain['sigsqr']).mean()
+        SErr=np.sqrt(lm.chain['sigsqr']).std()
         
+        pars=np.array([lm.chain['alpha'], lm.chain['beta'], lm.chain['gamma'], np.sqrt(lm.chain['sigsqr'])]).transpose()
+        
+        fitResults={'A': A, 'AErr': AErr, 'B': B, 'BErr': BErr, 'C': C, 'CErr': CErr, 'S': S, 'SErr': SErr, 'pars': pars}
+
         print "... xPivot = %.3e ..." % (parDict['xPivot'])
         print "... yPivot = %.3e ..." % (parDict['yPivot'])
         
-        if parDict['method'] == 'orthogonal':
-            variables=['A', 'B', 'C', 'S', 's']
-        elif parDict['method'] == 'bisector':
-            variables=['A', 'B', 'C', 'Sx', 'Sy']
+        variables=['A', 'B', 'C', 'S']
         for v in variables:
             print "... %s = %.3f +/- %.3f" % (v, fitResults['%s' % (v)], fitResults['%sErr' % (v)])
+        parDict['variables']=variables
 
-        print "... zStatistic (< 2 for all parameters indicates chains converged) = ", fitResults['zStatistic']
-        if 'AIC' in fitResults.keys():
-            print "... AIC = %.3f ..." % (fitResults['AIC'])
-            print "... AICc = %.3f ..." % (fitResults['AICc'])
+        #print "... zStatistic (< 2 for all parameters indicates chains converged) = ", fitResults['zStatistic']
+        #if 'AIC' in fitResults.keys():
+            #print "... AIC = %.3f ..." % (fitResults['AIC'])
+            #print "... AICc = %.3f ..." % (fitResults['AICc'])
             
         sample['fitResults']=fitResults # handy for making side by side L-T plot (e.g. z evo in bins)
         sample['stab']=stab
@@ -134,10 +132,6 @@ else:
         outFile=file(outDir+os.path.sep+"results.txt", "w")
         outFile.write("xPivot = %.3e\n" % (parDict['xPivot']))
         outFile.write("yPivot = %.3e\n" % (parDict['yPivot']))
-        if parDict['method'] == 'orthogonal':
-            variables=['A', 'B', 'C', 'S', 's']
-        elif parDict['method'] == 'bisector':
-            variables=['A', 'B', 'C', 'Sx', 'Sy']
         for v in variables:
             outFile.write("%s = %.3f\n" % (v, fitResults['%s' % (v)]))
             outFile.write("%sErr = %.3f\n" % (v, fitResults['%sErr' % (v)]))
@@ -146,10 +140,9 @@ else:
             outFile.write("AIC = %.3f\n" % (fitResults['AIC']))
             outFile.write("AICc = %.3f\n" % (fitResults['AICc']))
         outFile.close()
-                 
+                    
     # Scaling relation plots side by side, e.g., z bins
     if len(sampleDefs) > 1:
         fsr.makeScalingRelationPlots_sideBySide(sampleDefs, rootOutDir, parDict)
-    
-    
-    
+        
+

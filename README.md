@@ -3,8 +3,13 @@
 This is a code for fitting galaxy cluster scaling relations using orthogonal or bisector regression and MCMC. It takes
 into account errors on both variables and intrinsic scatter. The algorithm is described in [Hilton et al. 
 (2012; MNRAS, 424, 2086)](http://adsabs.harvard.edu/abs/2012MNRAS.424.2086H), where it was used to fit the 
-luminosity--temperature scaling relation for the XMM Cluster Survey (XCS) first data release. Note that it is
-simple to add Y|X and X|Y regression models as additional options, but these have not been implemented at present.
+luminosity--temperature scaling relation for the XMM Cluster Survey (XCS) first data release.
+
+As of May 2016, a version of the [Kelly (2007; ApJ, 665, 1489)](http://adsabs.harvard.edu/abs/2007ApJ...665.1489K)
+regression algorithm has been added. This uses the [python implementation by Joshua Meyers](https://github.com/jmeyers314/linmix),
+which has been adapted in this package to additionally fit for redshift evolution. This is not thoroughly
+road tested yet. It does give rather different results for the XCS luminosity--temperature relation compared
+to the results in [Hilton et al. (2012; MNRAS, 424, 2086)](http://adsabs.harvard.edu/abs/2012MNRAS.424.2086H).
 
 Although the code is very much geared up for fitting galaxy cluster scaling relations of all kinds, it can
 be used for any kind of regression problem with errors on both variables and intrinsic scatter.
@@ -29,7 +34,7 @@ To build and install, do the usual:
 
 ## Running the code
 
-You can run the code using
+To run either the bisector or orthogonal fitting algorthms, you can run the code using
 
 ```fitScalingRelation parFileName```
 
@@ -38,6 +43,14 @@ priors, etc.).
 
 You can find example `.par` files for running the code on the original XCS DR1 catalogue (warts and all) in
 the `examples/` directory.
+
+To run the Kelly (2007) algorithm (with the addition of redshift evolution switched on by default at the 
+moment), use
+
+```fitLinMixScalingRelation parFileName```
+
+where the parameters file can be identical to the one used for ```fitScalingRelation``` - parameters
+which don't apply for the Kelly algorithm are ignored.
 
 ## Caveats
 

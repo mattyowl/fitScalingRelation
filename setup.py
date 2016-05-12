@@ -17,9 +17,10 @@ setup(name='fitScalingRelation',
       classifiers=[],
       description='Code for fitting galaxy cluster scaling relations.',
       long_description="""Code for fitting galaxy cluster scaling relations (taking into account errors on both variables and intrinsic scatter) using MCMC.""",
-      package_dir={'': 'fitScalingRelation'},
-      py_modules=['fitScalingRelation'],
-      scripts=['bin/fitScalingRelation'],
+      packages=['fitScalingRelation'],
+      #package_dir={'': 'fitScalingRelation'},
+      #py_modules=['fitScalingRelation', 'linmixScalingRelation'],
+      scripts=['bin/fitScalingRelation', 'bin/fitLinMixScalingRelation'],
       cmdclass={'build_ext': build_ext},
       ext_modules=[Extension("cythonScalingRelation", ["fitScalingRelation/cythonScalingRelation.pyx"], include_dirs=[numpy.get_include()])]
 )
