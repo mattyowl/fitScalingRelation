@@ -8,8 +8,7 @@ luminosity--temperature scaling relation for the XMM Cluster Survey (XCS) first 
 As of May 2016, a version of the [Kelly (2007; ApJ, 665, 1489)](http://adsabs.harvard.edu/abs/2007ApJ...665.1489K)
 regression algorithm has been added. This uses the [python implementation by Joshua Meyers](https://github.com/jmeyers314/linmix),
 which has been adapted in this package to additionally fit for redshift evolution. This is not thoroughly
-road tested yet. It does give rather different results for the XCS luminosity--temperature relation compared
-to the results in [Hilton et al. (2012; MNRAS, 424, 2086)](http://adsabs.harvard.edu/abs/2012MNRAS.424.2086H).
+road tested yet, and certainly contains bugs at the moment.
 
 Although the code is very much geared up for fitting galaxy cluster scaling relations of all kinds, it can
 be used for any kind of regression problem with errors on both variables and intrinsic scatter.
@@ -59,7 +58,8 @@ mass function is important. This algorithm doesn't do that currently.
 
 ## Acknowledgement
 
-If you use this code, please cite [Hilton et al. (2012; MNRAS, 424, 2086)](http://adsabs.harvard.edu/abs/2012MNRAS.424.2086H). 
+If you use the orthogonal/bisector fitting code, please cite [Hilton et al. (2012; MNRAS, 424, 2086)](http://adsabs.harvard.edu/abs/2012MNRAS.424.2086H). 
+If you use fitLinMixScalingRelation, cite [Kelly (2007; ApJ, 665, 1489)](http://adsabs.harvard.edu/abs/2007ApJ...665.1489K).
 
 ## Comments, bug reports, help, suggestions etc..
 

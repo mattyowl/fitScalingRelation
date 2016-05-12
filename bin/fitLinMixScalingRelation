@@ -109,6 +109,20 @@ else:
         sample['fitResults']=fitResults # handy for making side by side L-T plot (e.g. z evo in bins)
         sample['stab']=stab
         
+        # Output parameters to a .txt file
+        outFile=file(outDir+os.path.sep+"results.txt", "w")
+        outFile.write("N = %d\n" % (len(stab)))
+        outFile.write("xPivot = %.3e\n" % (parDict['xPivot']))
+        outFile.write("yPivot = %.3e\n" % (parDict['yPivot']))
+        for v in variables:
+            outFile.write("%s = %.3f\n" % (v, fitResults['%s' % (v)]))
+            outFile.write("%sErr = %.3f\n" % (v, fitResults['%sErr' % (v)]))
+        #outFile.write("zStatistic = %.3f\n" % (fitResults['zStatistic']))
+        if 'AIC' in fitResults.keys():
+            outFile.write("AIC = %.3f\n" % (fitResults['AIC']))
+            outFile.write("AICc = %.3f\n" % (fitResults['AICc']))
+        outFile.close()
+        
         # These are handy...
         fsr.makeRoundedPlotLabelStrings(fitResults, variables)
                 
@@ -135,21 +149,7 @@ else:
         # Fancy plots of 1D, 2D prob for the paper, only made for 4 parameters fitted
         if fitResults['AErr'] > 0 and fitResults['BErr'] > 0 and fitResults['CErr'] > 0:
             fsr.makePaperContourPlots(fitResults, parDict, outDir)
-                
-        # Output parameters to a .txt file
-        outFile=file(outDir+os.path.sep+"results.txt", "w")
-        outFile.write("N = %d\n" % (len(stab)))
-        outFile.write("xPivot = %.3e\n" % (parDict['xPivot']))
-        outFile.write("yPivot = %.3e\n" % (parDict['yPivot']))
-        for v in variables:
-            outFile.write("%s = %.3f\n" % (v, fitResults['%s' % (v)]))
-            outFile.write("%sErr = %.3f\n" % (v, fitResults['%sErr' % (v)]))
-        #outFile.write("zStatistic = %.3f\n" % (fitResults['zStatistic']))
-        if 'AIC' in fitResults.keys():
-            outFile.write("AIC = %.3f\n" % (fitResults['AIC']))
-            outFile.write("AICc = %.3f\n" % (fitResults['AICc']))
-        outFile.close()
-                    
+                                    
     # Scaling relation plots side by side, e.g., z bins
     if len(sampleDefs) > 1:
         fsr.makeScalingRelationPlots_sideBySide(sampleDefs, rootOutDir, parDict)

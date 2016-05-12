@@ -491,7 +491,8 @@ class LinMixScalingRelation(object):
                             'xycov':xycov,
                             'delta':delta,
                             'K':K,
-                            'nchains':self.nchains}
+                            'nchains':self.nchains,
+                            'parDict': parDict}
             seed = np.random.randint(2**32)
             for i, p in enumerate(self.pipes):
                 init_kwargs = init_kwargs0.copy()
