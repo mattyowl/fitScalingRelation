@@ -257,24 +257,44 @@ class Chain(object):
             self.G[i] = self.rng.multinomial(1, q_ki[i])
 
     def update_alpha_beta_gamma(self):  # Step 6
-        X = np.ones((self.N, 3), dtype=float)
-        X[:, 1] = self.xi
-        X[:, 2] = self.z
-        # Eqn (77)
-        XTXinv = np.linalg.inv(np.dot(X.T, X))
-        Sigma_chat = XTXinv * self.sigsqr
-        # Eqn (76)
-        chat = np.dot(np.dot(XTXinv, X.T), self.eta)
-        # Eqn (75)
-        self.alpha, self.beta, self.gamma = self.rng.multivariate_normal(chat, Sigma_chat)
-        # If any parameters are fixed...
-        if self.parDict['AFit'] == 'fixed':
-            self.alpha=self.parDict['A0']
-        if self.parDict['BFit'] == 'fixed':
-            self.beta=self.parDict['B0']
-        if self.parDict['CFit'] == 'fixed':
-            self.gamma=self.parDict['C0']
-            
+        # At the moment, we can only fix C0 = 0
+        if self.parDict['CFit'] == 'fixed' and self.parDict['C0'] == 0.0:
+            X = np.ones((self.N, 2), dtype=float)
+            X[:, 1] = self.xi
+            # Eqn (77)
+            XTXinv = np.linalg.inv(np.dot(X.T, X))
+            Sigma_chat = XTXinv * self.sigsqr
+            # Eqn (76)
+            chat = np.dot(np.dot(XTXinv, X.T), self.eta)
+            # Eqn (75)
+            self.alpha, self.beta = self.rng.multivariate_normal(chat, Sigma_chat)
+            self.gamma=0.
+        else:
+            # This doesn't work if any parameters fixed
+            X = np.ones((self.N, 3), dtype=float)
+            X[:, 1] = self.xi
+            X[:, 2] = self.z
+            # Eqn (77)
+            XTXinv = np.linalg.inv(np.dot(X.T, X))
+            Sigma_chat = XTXinv * self.sigsqr
+            # Eqn (76)
+            chat = np.dot(np.dot(XTXinv, X.T), self.eta)
+            # Eqn (75)
+            self.alpha, self.beta, self.gamma = self.rng.multivariate_normal(chat, Sigma_chat)
+        
+        # Make proposal, this may just make convergence take a long time...
+        # Doesn't work at all with this Gibbs sampler set up
+        #pars=[self.alpha, self.beta, self.gamma]
+        #scales=[self.parDict['AScale'], self.parDict['BScale'], self.parDict['CScale']]
+        #prop=np.random.normal(pars, scales)        
+        #if self.parDict['AFit'] == 'fixed':
+            #prop[0]=self.parDict['A0']
+        #if self.parDict['BFit'] == 'fixed':
+            #prop[1]=self.parDict['B0']        
+        #if self.parDict['CFit'] == 'fixed':
+            #prop[2]=self.parDict['C0']
+        #self.alpha, self.beta, self.gamma=prop[0], prop[1], prop[2]
+
     def update_sigsqr(self):  # Step 7
         # Eqn (80)
         ssqr = 1.0/(self.N-2) * np.sum((self.eta - self.alpha - self.beta * self.xi - self.gamma * self.z)**2)

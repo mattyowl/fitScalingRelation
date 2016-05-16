@@ -7,8 +7,10 @@ luminosity--temperature scaling relation for the XMM Cluster Survey (XCS) first 
 
 As of May 2016, a version of the [Kelly (2007; ApJ, 665, 1489)](http://adsabs.harvard.edu/abs/2007ApJ...665.1489K)
 regression algorithm has been added. This uses the [python implementation by Joshua Meyers](https://github.com/jmeyers314/linmix),
-which has been adapted in this package to additionally fit for redshift evolution. This is not thoroughly
-road tested yet, and certainly contains bugs at the moment.
+which is being adapted in this package to additionally fit for redshift evolution. This is not thoroughly
+road tested yet, and certainly contains bugs at the moment. Don't use it (yet). However, if you don't require
+a fit for redshift evolution, set CFit = 0 and C0 = 0 in the ,par file and the code will work as expected.
+In this case, it is just acting as a wrapper for the linmix python code.
 
 Although the code is very much geared up for fitting galaxy cluster scaling relations of all kinds, it can
 be used for any kind of regression problem with errors on both variables and intrinsic scatter.
