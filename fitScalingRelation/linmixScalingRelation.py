@@ -2,6 +2,10 @@
 
 linmix -- A hierarchical Bayesian approach to linear regression with error in both X and Y.
 
+---
+
+Original code:
+
 Copyright (c) 2015, Josh Meyers
 All rights reserved.
 
@@ -33,6 +37,7 @@ Modified here to fit for redshift evolution, and allow fixing of parameters.
 """
 
 import numpy as np
+import fitScalingRelationLib as fsr
 import IPython
 
 def task_manager(conn):
@@ -115,20 +120,28 @@ class Chain(object):
         K = self.K
 
         # Use BCES estimator for initial guess of theta = {alpha, beta, sigsqr}
-        self.beta = ((np.cov(x, y, ddof=1)[1, 0] - np.mean(xycov))
-                     / (np.var(x, ddof=1) - np.mean(xvar)))
-        self.alpha = np.mean(y) - self.beta * np.mean(x)
-        self.sigsqr = np.var(y, ddof=1) - np.mean(yvar) - self.beta * (np.cov(x, y, ddof=1)[1, 0]
-                                                                       - np.mean(xycov))
-        self.sigsqr = np.max([self.sigsqr,
-                              0.05 * np.var(y - self.alpha - self.beta * x, ddof=1)])
-
+        # NOTE: sigsqr can blow up when redshift evolution involved
+        #self.beta = ((np.cov(x, y, ddof=1)[1, 0] - np.mean(xycov))
+                     #/ (np.var(x, ddof=1) - np.mean(xvar)))
+        #self.alpha = np.mean(y) - self.beta * np.mean(x)
+        
+        #self.sigsqr = np.var(y, ddof=1) - np.mean(yvar) - self.beta * (np.cov(x, y, ddof=1)[1, 0]
+                                                                       #- np.mean(xycov))
+        #self.sigsqr = np.max([self.sigsqr,
+                              #0.05 * np.var(y - self.alpha - self.beta * x, ddof=1)])
+        #self.mu0 = np.median(x)
+        #self.wsqr = np.var(x, ddof=1) - np.median(xvar)
+        #self.wsqr = np.max([self.wsqr, 0.01*np.var(x, ddof=1)])
+        
+        # Initial guess based on parameters file (may take longer to converge)
+        self.alpha, self.beta, self.gamma, self.sigsqr=fsr.selectStartParsFromPriors(self.parDict)
+        self.sigsqr=self.sigsqr**2
         self.mu0 = np.median(x)
         self.wsqr = np.var(x, ddof=1) - np.median(xvar)
         self.wsqr = np.max([self.wsqr, 0.01*np.var(x, ddof=1)])
-
+        
         # For redshift evolution power law
-        self.gamma = 0.
+        #self.gamma = 0.
         
         # Now get an MCMC value dispersed around above values
         X = np.ones((N, 3), dtype=float)
@@ -136,7 +149,13 @@ class Chain(object):
         X[:, 2] = z
         Sigma = np.linalg.inv(np.dot(X.T, X)) * self.sigsqr
 
-        coef = self.rng.multivariate_normal([0, 0, 0], Sigma)
+        try:
+            coef = self.rng.multivariate_normal([0, 0, 0], Sigma)
+        except:
+            print "initial guess fail"
+            IPython.embed()
+            sys.exit()
+            
         chisqr = self.rng.chisquare(self.nchains)
         self.alpha += coef[0] * np.sqrt(1.0/chisqr)
         self.beta += coef[1] * np.sqrt(1.0/chisqr)
@@ -246,6 +265,11 @@ class Chain(object):
         # Eqn (66)
         self.eta[wyerr] = self.rng.normal(loc=etahat_i[wyerr],
                                           scale=np.sqrt(sigma_etahat_i_sqr[wyerr]))
+        # checking
+        if np.any(np.isnan(self.eta)) == True:
+            print "self.eta has nans"
+            IPython.embed()
+            sys.exit()
 
     def update_G(self):  # Step 5
         # Eqn (74)
@@ -280,8 +304,13 @@ class Chain(object):
             # Eqn (76)
             chat = np.dot(np.dot(XTXinv, X.T), self.eta)
             # Eqn (75)
-            self.alpha, self.beta, self.gamma = self.rng.multivariate_normal(chat, Sigma_chat)
-        
+            try:
+                self.alpha, self.beta, self.gamma = self.rng.multivariate_normal(chat, Sigma_chat)
+            except:
+                print "multivariate_normal fail"
+                IPython.embed()
+                sys.exit()
+                
         # Make proposal, this may just make convergence take a long time...
         # Doesn't work at all with this Gibbs sampler set up
         #pars=[self.alpha, self.beta, self.gamma]

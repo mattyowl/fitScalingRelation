@@ -392,6 +392,7 @@ def MCMCFit(settingsDict, tab):
         log10RedshiftEvo=np.log10(tab['E(z)'])
     else:
         raise Exception, "didn't understand evoModel '%s'" % (evoModel)
+    #log10RedshiftEvo=np.array(log10RedshiftEvo, dtype = float)
     
     # To start with, we're going to use the same proposal distribution for everything
     # But later on we could dig out the correlated random numbers code to generate random parameter values that
@@ -409,9 +410,24 @@ def MCMCFit(settingsDict, tab):
     xErrToFitMinus=byteSwapArr(tab['xErrToFitMinus'])    
     detP=byteSwapArr(tab['detP'])
     
+    # Another thing... fix this later properly... but if everything isn't same data type, cython falls over
+    yToFit=np.array(tab['yToFit'], dtype = np.float64)
+    yErrToFitPlus=np.array(tab['yErrToFitPlus'], dtype = np.float64)
+    yErrToFitMinus=np.array(tab['yErrToFitMinus'], dtype = np.float64)
+    xToFit=np.array(tab['xToFit'], dtype = np.float64)
+    xErrToFitPlus=np.array(tab['xErrToFitPlus'], dtype = np.float64)
+    xErrToFitMinus=np.array(tab['xErrToFitMinus'], dtype = np.float64)
+    log10RedshiftEvo=np.array(log10RedshiftEvo, dtype = np.float64)
+    detP=np.array(tab['detP'], dtype = np.float64)
+    
     if swapAxes == False:
-        cProb, probArray=likelihood(cPars, yToFit, yErrToFitPlus, yErrToFitMinus, xToFit, xErrToFitPlus,
-                                    xErrToFitMinus, log10RedshiftEvo, detP)  
+        try:
+            cProb, probArray=likelihood(cPars, yToFit, yErrToFitPlus, yErrToFitMinus, xToFit, xErrToFitPlus,
+                                    xErrToFitMinus, log10RedshiftEvo, detP)
+        except:
+            print "byte swapping problem?"
+            IPython.embed()
+            sys.exit()
     else:
         cProb, probArray=likelihood(cPars, xToFit, xErrToFitPlus, xErrToFitMinus, yToFit, yErrToFitPlus,
                                     yErrToFitMinus, log10RedshiftEvo, detP) 
@@ -1237,7 +1253,7 @@ def makePaperContourPlots(fitResults, parDict, outDir):
     As=np.linspace(mlA-5.0*mlAErr-math.fmod(mlA-5.0*mlAErr, 0.1), mlA+5.0*mlAErr-math.fmod(mlA+5.0*mlAErr, 0.1), 81)
     Bs=np.linspace(mlB-5.0*mlBErr-math.fmod(mlB-5.0*mlBErr, 0.1), mlB+5.0*mlBErr-math.fmod(mlB+5.0*mlBErr, 0.1), 81)
     Cs=np.linspace(mlC-5.0*mlCErr-math.fmod(mlC-5.0*mlCErr, 0.1), mlC+5.0*mlCErr-math.fmod(mlC+5.0*mlCErr, 0.1), 81)
-    Ss=np.linspace(mlS-5.0*mlSErr-math.fmod(mlS-5.0*mlSErr, 0.1), mlS+6.0*mlSErr-math.fmod(mlS+5.0*mlSErr, 0.1), 81)
+    Ss=np.linspace(mlS-5.0*mlSErr-math.fmod(mlS-5.0*mlSErr, 0.01), mlS+5.0*mlSErr-math.fmod(mlS+5.0*mlSErr, 0.01), 81)
     
     # Steps for tick label plotting adjustment
     AStep=0.2

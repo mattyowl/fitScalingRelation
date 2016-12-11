@@ -7,6 +7,9 @@
 # Set to True to rerun the fitting, False to just rerun and replot (if adjusting the code/labels etc.)
 refit=True
 
+# Plots or not?
+makePlots=True
+
 # Which likelihood?
 method="orthogonal"
 

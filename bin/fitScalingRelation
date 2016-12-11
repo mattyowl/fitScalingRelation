@@ -103,32 +103,34 @@ else:
         sample['fitResults']=fitResults # handy for making side by side L-T plot (e.g. z evo in bins)
         sample['stab']=stab
         
-        # These are handy...
-        fsr.makeRoundedPlotLabelStrings(fitResults, variables)
-                
-        # Make plot of scaling relation
-        #if fitResults['AErr'] > 0 and fitResults['BErr'] > 0:
-        fsr.makeScalingRelationPlot(stab, fitResults, outDir, sample, parDict)
-        
-        # Not the most elegant way... scaling relation plot with evolution
-        if fitResults['CErr'] > 0:
-            fsr.makeScalingRelationPlot_ABC(stab, fitResults, outDir, sample, parDict, mode = 'normal')
-
-        # 1D plots for each parameter
-        fsr.make1DProbDensityPlots(fitResults, parDict, outDir)
-                        
-        # Plot of evolution relative to E(z) or 1+z
-        fsr.makeNormEvoPlot(stab, fitResults, outDir, parDict)
-
-        ## Contours (duh)
-        #try:
-            #makeContourPlots(fitResults, outDir, sample['label'])
-        #except:
-            #print "WARNING: failed to make contour plots"
+        if parDict['makePlots'] == True:
             
-        # Fancy plots of 1D, 2D prob for the paper, only made for 4 parameters fitted
-        if fitResults['AErr'] > 0 and fitResults['BErr'] > 0 and fitResults['CErr'] > 0:
-            fsr.makePaperContourPlots(fitResults, parDict, outDir)
+            # These are handy...
+            fsr.makeRoundedPlotLabelStrings(fitResults, variables)
+                    
+            # Make plot of scaling relation
+            #if fitResults['AErr'] > 0 and fitResults['BErr'] > 0:
+            fsr.makeScalingRelationPlot(stab, fitResults, outDir, sample, parDict)
+            
+            # Not the most elegant way... scaling relation plot with evolution
+            if fitResults['CErr'] > 0:
+                fsr.makeScalingRelationPlot_ABC(stab, fitResults, outDir, sample, parDict, mode = 'normal')
+
+            # 1D plots for each parameter
+            fsr.make1DProbDensityPlots(fitResults, parDict, outDir)
+                            
+            # Plot of evolution relative to E(z) or 1+z
+            fsr.makeNormEvoPlot(stab, fitResults, outDir, parDict)
+
+            ## Contours (duh)
+            #try:
+                #makeContourPlots(fitResults, outDir, sample['label'])
+            #except:
+                #print "WARNING: failed to make contour plots"
+                
+            # Fancy plots of 1D, 2D prob for the paper, only made for 4 parameters fitted
+            if fitResults['AErr'] > 0 and fitResults['BErr'] > 0 and fitResults['CErr'] > 0:
+                fsr.makePaperContourPlots(fitResults, parDict, outDir)
                 
         # Output parameters to a .txt file
         outFile=file(outDir+os.path.sep+"results.txt", "w")
