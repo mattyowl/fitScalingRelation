@@ -28,7 +28,7 @@ import string
 from astLib import *
 import pylab as plt
 import numpy as np
-import atpy
+import astropy.table as atpy
 import popen2
 from scipy import stats
 from scipy import special
@@ -42,6 +42,12 @@ import matplotlib
 import IPython
 np.random.seed()
 plt.matplotlib.interactive(False)
+
+# For some unknown reason, mathtext in matplotlib is behaving weirdly since Ubuntu 16.10 upgrade
+#try:
+    #plt.matplotlib.rc('text', usetex=True)
+#except:
+    #pass
 
 #-------------------------------------------------------------------------------------------------------------
 # Adopt Ed's cosmology
@@ -218,7 +224,7 @@ def sampleGetter(settingsDict, sampleDef, outDir):
     yScaleFactor=settingsDict['yScaleFactor']
     yScaleFactorPower=settingsDict['yScaleFactorPower']
 
-    newTab=atpy.Table(settingsDict['inFileName'])
+    newTab=atpy.Table().read(settingsDict['inFileName'])
     
     # Make a new table here with cuts applied
     # NOTE: we really need a better way of labelling constraints
@@ -226,13 +232,13 @@ def sampleGetter(settingsDict, sampleDef, outDir):
         if key not in ['label', 'plotLabel']:
             if key[-4:] == '_MIN':
                 col=key[:-4]
-                newTab=newTab.where(newTab[col] > sampleDef[key])
+                newTab=newTab[np.where(newTab[col] > sampleDef[key])]
             elif key[-4:] == '_MAX':
                 col=key[:-4]
-                newTab=newTab.where(newTab[col] < sampleDef[key])
+                newTab=newTab[np.where(newTab[col] < sampleDef[key])]
             else:
                 if type(sampleDef[key]) != list:
-                    newTab=newTab.where(newTab[key] == sampleDef[key])
+                    newTab=newTab[np.where(newTab[key] == sampleDef[key])]
                 else:
                     print "Need to add more sampleDef key handling code"
                     IPython.embed()
@@ -246,7 +252,7 @@ def sampleGetter(settingsDict, sampleDef, outDir):
     Ez=[]
     for row in newTab:
         Ez.append(astCalc.Ez(row[redshiftColumnName]))
-    newTab.add_column('E(z)', Ez)
+    newTab.add_column(atpy.Column(Ez, 'E(z)'))
     
     # Add columns we will fit to, scaling and applying log10 as necessary
     # We apply pivots here also (undo them, if necessary, elsewhere)
@@ -289,23 +295,23 @@ def sampleGetter(settingsDict, sampleDef, outDir):
     if xToFit.dtype.byteorder == '>':
         xToFit=xToFit.byteswap().newbyteorder('=')
         
-    stab.add_column('xToFit', xToFit)
-    stab.add_column('xErrToFitPlus', xErrToFitPlus)
-    stab.add_column('xErrToFitMinus', xErrToFitMinus)
-    stab.add_column('yToFit', yToFit)
-    stab.add_column('yErrToFitPlus', yErrToFitPlus)
-    stab.add_column('yErrToFitMinus', yErrToFitMinus)
+    stab.add_column(atpy.Column(xToFit, 'xToFit'))
+    stab.add_column(atpy.Column(xErrToFitPlus, 'xErrToFitPlus'))
+    stab.add_column(atpy.Column(xErrToFitMinus, 'xErrToFitMinus'))
+    stab.add_column(atpy.Column(yToFit, 'yToFit'))
+    stab.add_column(atpy.Column(yErrToFitPlus, 'yErrToFitPlus'))
+    stab.add_column(atpy.Column(yErrToFitMinus, 'yErrToFitMinus'))
     
     # If we ever get around to fiddling with detection probabilities again, change this...
     if 'detPColumnName' in settingsDict.keys():
         if settingsDict['detPColumnName'] != 'detP':
-            stab.add_column('detP', stab[settingsDict['detPColumnName']])
+            stab.add_column(atpy.Column(stab[settingsDict['detPColumnName']], 'detP'))
         #stab['detP']=np.ones(len(stab))
         #stab['detP']=stab['detP'].byteswap().newbyteorder()
         #IPython.embed()
         #sys.exit()
     else:
-        stab.add_column('detP', [1.0]*len(stab))
+        stab.add_column(atpy.Column([1.0]*len(stab), 'detP'))
     if 'ignoreSelectionFunction' in settingsDict.keys() and settingsDict['ignoreSelectionFunction'] == True:
         stab['detP']=np.ones(len(stab))
         
@@ -534,6 +540,11 @@ def MCMCFit(settingsDict, tab):
     resultsDict['pars']=allPars
     resultsDict['zStatistic']=zStatistic
     
+    # chi-sq
+    yMod=(xToFit*resultsDict['B'])+resultsDict['A']+resultsDict['C']*log10RedshiftEvo
+    chiSq=np.sum(((yToFit-yMod)**2)/yMod)
+    resultsDict['chiSq']=chiSq
+
     return resultsDict
             
 #-------------------------------------------------------------------------------------------------------------

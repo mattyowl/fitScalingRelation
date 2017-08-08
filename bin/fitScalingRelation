@@ -99,7 +99,10 @@ else:
         if 'AIC' in fitResults.keys():
             print "... AIC = %.3f ..." % (fitResults['AIC'])
             print "... AICc = %.3f ..." % (fitResults['AICc'])
-            
+        
+        if 'chiSq' in fitResults.keys():
+            print "... chi-sq = %.3f ..." % (fitResults['chiSq'])
+        
         sample['fitResults']=fitResults # handy for making side by side L-T plot (e.g. z evo in bins)
         sample['stab']=stab
         

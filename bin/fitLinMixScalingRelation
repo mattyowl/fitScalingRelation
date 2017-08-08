@@ -26,7 +26,7 @@
 
 import os
 import sys
-import atpy
+import astropy.table as atpy
 import numpy as np
 import pylab as plt
 from scipy import stats
@@ -94,6 +94,11 @@ else:
         
         fitResults={'A': A, 'AErr': AErr, 'B': B, 'BErr': BErr, 'C': C, 'CErr': CErr, 'S': S, 'SErr': SErr, 'pars': pars}
 
+        # chi-sq
+        yMod=(x*B)+A+C*z
+        chiSq=np.sum(((y-yMod)**2)/yMod)
+        fitResults['chiSq']=chiSq
+    
         print "... xPivot = %.3e ..." % (parDict['xPivot'])
         print "... yPivot = %.3e ..." % (parDict['yPivot'])
         
@@ -101,6 +106,9 @@ else:
         for v in parDict['variables']:
             print "... %s = %.3f +/- %.3f" % (v, fitResults['%s' % (v)], fitResults['%sErr' % (v)])
 
+        if 'chiSq' in fitResults.keys():
+            print "... chi-sq = %.3f ..." % (fitResults['chiSq'])
+            
         #print "... zStatistic (< 2 for all parameters indicates chains converged) = ", fitResults['zStatistic']
         #if 'AIC' in fitResults.keys():
             #print "... AIC = %.3f ..." % (fitResults['AIC'])
