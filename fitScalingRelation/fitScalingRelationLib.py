@@ -1201,7 +1201,7 @@ def makeNormEvoPlot(stab, fitResults, outDir, settingsDict):
             sys.exit()
     
     plt.plot(stab[redshiftColumnName], dataNormalisation, 'kD', label = dataLabel)
-    if yScalingLine != None:
+    if np.any(yScalingLine) != None:
         plt.plot(zs, yScalingLine, 'b--', label = yScalingLineLabel, lw = 2)
     plt.plot(zs, nullLine, 'g-.', label = 'no evolution', lw = 2)
     
