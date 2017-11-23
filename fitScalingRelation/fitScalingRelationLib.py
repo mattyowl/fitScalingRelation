@@ -542,7 +542,7 @@ def MCMCFit(settingsDict, tab):
     
     # chi-sq
     yMod=(xToFit*resultsDict['B'])+resultsDict['A']+resultsDict['C']*log10RedshiftEvo
-    chiSq=np.sum(((yToFit-yMod)**2)/yMod)
+    chiSq=np.sum(((yToFit-yMod)**2)/yMod**2)
     resultsDict['chiSq']=chiSq
 
     return resultsDict
@@ -1243,6 +1243,10 @@ def makePaperContourPlots(fitResults, parDict, outDir):
     """Special case of plots, for 4 parameter fits, for the paper.
     
     """
+    
+    if 'S' not in fitResults.keys():
+        print "... using bisector method - 2D contour plots disabled ..."
+        return None
     
     mlA, mlAErr=fitResults['A'], fitResults['AErr']
     mlB, mlBErr=fitResults['B'], fitResults['BErr']
