@@ -541,9 +541,12 @@ def MCMCFit(settingsDict, tab):
     resultsDict['zStatistic']=zStatistic
     
     # chi-sq
-    yMod=(xToFit*resultsDict['B'])+resultsDict['A']+resultsDict['C']*log10RedshiftEvo
-    chiSq=np.sum(((yToFit-yMod)**2)/yMod**2)
-    resultsDict['chiSq']=chiSq
+    #yMod=(xToFit*resultsDict['B'])+resultsDict['A']+resultsDict['C']*log10RedshiftEvo
+    #chiSq=np.sum(np.power(yToFit-yMod, 2)/np.power(yErrToFitPlus, 2))
+    #resultsDict['chiSq']=chiSq    
+    #print "check chiSq"
+    #IPython.embed()
+    #sys.exit()
 
     return resultsDict
             
@@ -880,8 +883,11 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
     else:
         raise Exception, "add semilogx, semilogy fit line code"
     
-    fitLabel='%s (%s) = 10$^{%.2f \pm %.2f}$ (%s/%.1f %s)$^{%.2f \pm %.2f}$' % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'], fitResults['A'], fitResults['AErr'], settingsDict['xPlotLabel'], xPivot, settingsDict['xPlotLabelUnits'], fitResults['B'], fitResults['BErr'])
-
+    if xPivot != 1.0:
+        fitLabel='%s (%s) = 10$^{%.2f \pm %.2f}$ (%s/%.1f %s)$^{%.2f \pm %.2f}$' % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'], fitResults['A'], fitResults['AErr'], settingsDict['xPlotLabel'], xPivot, settingsDict['xPlotLabelUnits'], fitResults['B'], fitResults['BErr'])
+    else:
+        fitLabel='%s (%s) = 10$^{%.2f \pm %.2f}$ (%s)$^{%.2f \pm %.2f}$' % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'], fitResults['A'], fitResults['AErr'], settingsDict['xPlotLabel'], fitResults['B'], fitResults['BErr'])
+        
     yLabel="%s (%s)" % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'])
 
     if settingsDict['yScaleFactor'] == "E(z)":
