@@ -29,7 +29,6 @@ from astLib import *
 import pylab as plt
 import numpy as np
 import astropy.table as atpy
-import popen2
 from scipy import stats
 from scipy import special
 from scipy import interpolate
@@ -56,7 +55,7 @@ plt.matplotlib.interactive(False)
     
 #-------------------------------------------------------------------------------------------------------------
 def ask_for( key ):
-    s = raw_input( "ParametersDict: enter value for '%s': " % key )
+    s = input( "ParametersDict: enter value for '%s': " % key )
     try:
         val = eval(s)
     except NameError:
@@ -68,9 +67,9 @@ class ParametersDict( dict ):
 
     def __getitem__( self, key ):
         if key not in self:
-            print "ParametersDict: parameter '%s' not found" % key
+            print("ParametersDict: parameter '%s' not found" % key)
             val = ask_for( key )
-            print "ParametersDict: setting '%s' = %s" % (key,repr(val))
+            print("ParametersDict: setting '%s' = %s" % (key,repr(val)))
             dict.__setitem__( self, key, val )
         return dict.__getitem__( self, key )
 
@@ -95,8 +94,8 @@ class ParametersDict( dict ):
                 ##sys.exit()
             s = line.split('=')
             if len(s) != 2:
-                print "Error parsing line:"
-                print line
+                print("Error parsing line:")
+                print(line)
                 IPython.embed()
                 sys.exit()
                 continue
@@ -104,13 +103,13 @@ class ParametersDict( dict ):
                 key = s[0].strip()
                 val = eval(s[1].strip()) # XXX:make safer
             except:
-                raise Exception, "can't parse line: %s" % (line)
+                raise Exception("can't parse line: %s" % (line))
             self[key] = val
         f.close()
 
     def write_to_file( self, filename, mode = 'w' ):
         f = open( filename, mode )
-        keys = self.keys()
+        keys = list(self.keys())
         keys.sort()
         for key in keys:
             f.write( "%s = %s\n" % (key,repr(self[key])) )
@@ -119,7 +118,7 @@ class ParametersDict( dict ):
     def cmp( self, otherDict ):
         
         diff = []
-        ks = self.keys()
+        ks = list(self.keys())
         for k in ks:
             try:
                 if otherDict[k] == self.params[k]:
@@ -147,7 +146,7 @@ def selectStartParsFromPriors(settingsDict):
             pars[i]=np.random.uniform(settingsDict['prior_%s_MIN' % (v)], settingsDict['prior_%s_MAX' % (v)])
 
     # This makes sure that if we're testing by swapping axes, we can use the same prior ranges
-    if 'swapAxes' in settingsDict.keys() and settingsDict['swapAxes'] == True:
+    if 'swapAxes' in list(settingsDict.keys()) and settingsDict['swapAxes'] == True:
         b=1.0/pars[1]
         a=-pars[0]/pars[1]
         pars[0]=a
@@ -164,7 +163,7 @@ def getPPrior(pPars, settingsDict):
     variables=settingsDict['variables']
 
     # This makes sure that if we're testing by swapping axes, we can use the same prior ranges
-    if 'swapAxes' in settingsDict.keys() and settingsDict['swapAxes'] == True:
+    if 'swapAxes' in list(settingsDict.keys()) and settingsDict['swapAxes'] == True:
         b=1.0/pPars[1]
         a=-pPars[0]/pPars[1]
         pPars[0]=a
@@ -240,11 +239,11 @@ def sampleGetter(settingsDict, sampleDef, outDir):
                 if type(sampleDef[key]) != list:
                     newTab=newTab[np.where(newTab[key] == sampleDef[key])]
                 else:
-                    print "Need to add more sampleDef key handling code"
+                    print("Need to add more sampleDef key handling code")
                     IPython.embed()
                     sys.exit()
     if len(newTab) == 0:
-        print "Hmm... all objects cut? empty newTab"
+        print("Hmm... all objects cut? empty newTab")
         IPython.embed()
         sys.exit()
         
@@ -271,7 +270,7 @@ def sampleGetter(settingsDict, sampleDef, outDir):
     elif yScaleFactor == None:
         yScaling=np.ones(len(stab))
     else:
-        raise Exception, "didn't understand yScaleFactor"
+        raise Exception("didn't understand yScaleFactor")
 
     if xTakeLog10 == True:
         xToFit=np.log10(stab[xColumnName]/xPivot)
@@ -303,7 +302,7 @@ def sampleGetter(settingsDict, sampleDef, outDir):
     stab.add_column(atpy.Column(yErrToFitMinus, 'yErrToFitMinus'))
     
     # If we ever get around to fiddling with detection probabilities again, change this...
-    if 'detPColumnName' in settingsDict.keys():
+    if 'detPColumnName' in list(settingsDict.keys()):
         if settingsDict['detPColumnName'] != 'detP':
             stab.add_column(atpy.Column(stab[settingsDict['detPColumnName']], 'detP'))
         #stab['detP']=np.ones(len(stab))
@@ -312,7 +311,7 @@ def sampleGetter(settingsDict, sampleDef, outDir):
         #sys.exit()
     else:
         stab.add_column(atpy.Column([1.0]*len(stab), 'detP'))
-    if 'ignoreSelectionFunction' in settingsDict.keys() and settingsDict['ignoreSelectionFunction'] == True:
+    if 'ignoreSelectionFunction' in list(settingsDict.keys()) and settingsDict['ignoreSelectionFunction'] == True:
         stab['detP']=np.ones(len(stab))
         
     if settingsDict['symmetriseErrors'] == True:
@@ -362,11 +361,11 @@ def MCMCFit(settingsDict, tab):
     """
     
     # Can now swap axes for testing purposes
-    if 'swapAxes' in settingsDict.keys():
+    if 'swapAxes' in list(settingsDict.keys()):
         swapAxes=settingsDict['swapAxes']
     else:
         swapAxes=False
-    print "... swapAxes = ", swapAxes
+    print("... swapAxes = ", swapAxes)
 
     # Choice of method
     method=settingsDict['method']
@@ -397,7 +396,7 @@ def MCMCFit(settingsDict, tab):
     elif settingsDict['evoModel'] == 'E(z)':
         log10RedshiftEvo=np.log10(tab['E(z)'])
     else:
-        raise Exception, "didn't understand evoModel '%s'" % (evoModel)
+        raise Exception("didn't understand evoModel '%s'" % (evoModel))
     #log10RedshiftEvo=np.array(log10RedshiftEvo, dtype = float)
     
     # To start with, we're going to use the same proposal distribution for everything
@@ -431,7 +430,7 @@ def MCMCFit(settingsDict, tab):
             cProb, probArray=likelihood(cPars, yToFit, yErrToFitPlus, yErrToFitMinus, xToFit, xErrToFitPlus,
                                     xErrToFitMinus, log10RedshiftEvo, detP)
         except:
-            print "byte swapping problem?"
+            print("byte swapping problem?")
             IPython.embed()
             sys.exit()
     else:
@@ -439,7 +438,7 @@ def MCMCFit(settingsDict, tab):
                                     yErrToFitMinus, log10RedshiftEvo, detP) 
                                                    
     if cProb == 0:
-        raise Exception, "initial position in MCMC chain has zero probability - change initial values/fiddle with priors in .par file?"
+        raise Exception("initial position in MCMC chain has zero probability - change initial values/fiddle with priors in .par file?")
         
     allPars=[]  # == 'the Markov chain'
     likelihoods=[]
@@ -451,7 +450,7 @@ def MCMCFit(settingsDict, tab):
         tenPercent=numSamples/10
         for j in range(0,11):
             if k == j*tenPercent:
-                print "... "+str(j*10)+"% complete ..."
+                print("... "+str(j*10)+"% complete ...")
                 
         pPars=makeProposal(cPars, scales, settingsDict)
         if swapAxes == False:
@@ -462,7 +461,7 @@ def MCMCFit(settingsDict, tab):
                                         yErrToFitMinus, log10RedshiftEvo, detP)                                                         
                                                         
         if np.isinf(pProb) == True:
-            print "Hmm - infinite probability?"
+            print("Hmm - infinite probability?")
             IPython.embed()
             sys.exit()
         
@@ -494,7 +493,7 @@ def MCMCFit(settingsDict, tab):
     likelihoods=np.array(likelihoods)
         
     # If we swap axes, it's just easier to transform back into a form we know
-    if 'swapAxes' in settingsDict.keys() and settingsDict['swapAxes'] == True:
+    if 'swapAxes' in list(settingsDict.keys()) and settingsDict['swapAxes'] == True:
         a=-allPars[:, 0]/allPars[:, 1]
         b=1.0/allPars[:, 1]
         allPars[:, 0]=a
@@ -560,7 +559,7 @@ def makeProposal(pars, scales, settingsDict):
   
     # This makes sure that if we're testing by swapping axes, we can use the same prior scales
     # To the same space as our scales
-    if 'swapAxes' in settingsDict.keys() and settingsDict['swapAxes'] == True:
+    if 'swapAxes' in list(settingsDict.keys()) and settingsDict['swapAxes'] == True:
         b=1.0/pars[1]
         a=-pars[0]/pars[1]
         pars[0]=a
@@ -569,7 +568,7 @@ def makeProposal(pars, scales, settingsDict):
     prop=np.random.normal(pars, scales)
             
     # And back...
-    if 'swapAxes' in settingsDict.keys() and settingsDict['swapAxes'] == True:
+    if 'swapAxes' in list(settingsDict.keys()) and settingsDict['swapAxes'] == True:
         b=1.0/prop[1]
         a=-prop[0]/prop[1]
         prop[0]=a
@@ -604,7 +603,7 @@ def make1DProbDensityPlots(fitResults, settingsDict, outDir):
     sigmaScale=5.0
     bins=30
     variables=settingsDict['variables']
-    axes=range(len(variables))
+    axes=list(range(len(variables)))
     
     # Individual plots
     #for v, a in zip(variables, axes):
@@ -806,7 +805,7 @@ def calc68Percentile(arr):
     try:
         err=res[index]
     except:
-        print "index error?"
+        print("index error?")
         IPython.embed()
         sys.exit()
     
@@ -881,7 +880,7 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
     elif xTakeLog10 == False and yTakeLog10 == False:
         yFit=settingsDict['yPivot']*(fitResults['A']+fitResults['B']*(plotRange/xPivot))
     else:
-        raise Exception, "add semilogx, semilogy fit line code"
+        raise Exception("add semilogx, semilogy fit line code")
     
     if xPivot != 1.0:
         fitLabel='%s (%s) = 10$^{%.2f \pm %.2f}$ (%s/%.1f %s)$^{%.2f \pm %.2f}$' % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'], fitResults['A'], fitResults['AErr'], settingsDict['xPlotLabel'], xPivot, settingsDict['xPlotLabelUnits'], fitResults['B'], fitResults['BErr'])
@@ -1030,7 +1029,7 @@ def makeScalingRelationPlot_ABC(sampleTab, fitResults, outDir, sampleDict, setti
         plt.figtext(0.52, 0.03, "P$_{\sf det}$", va = 'center', ha = 'center')
         plt.axes(ax)
     else:
-        raise Exception, "didn't understand mode"
+        raise Exception("didn't understand mode")
 
     plt.loglog()
 
@@ -1202,7 +1201,7 @@ def makeNormEvoPlot(stab, fitResults, outDir, settingsDict):
             else:
                 yScalingLineLabel=yScalingLineLabel+"$^{2/3}$"
         else:
-            print "yScalingLineLabel fraction handling?"
+            print("yScalingLineLabel fraction handling?")
             IPython.embed()
             sys.exit()
     
@@ -1250,8 +1249,8 @@ def makePaperContourPlots(fitResults, parDict, outDir):
     
     """
     
-    if 'S' not in fitResults.keys():
-        print "... using bisector method - 2D contour plots disabled ..."
+    if 'S' not in list(fitResults.keys()):
+        print("... using bisector method - 2D contour plots disabled ...")
         return None
     
     mlA, mlAErr=fitResults['A'], fitResults['AErr']
@@ -1416,7 +1415,7 @@ def probContourPlot_subPlot(par1Values, par2Values, par1Label, par2Label, par1Ti
     try:
         plt.contour(PDist2D, [sigma2Level, sigma1Level], colors = 'k')
     except:
-        print "contour problem"
+        print("contour problem")
         IPython.embed()
         sys.exit()
         
