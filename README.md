@@ -17,7 +17,9 @@ be used for any kind of regression problem with errors on both variables and int
 
 ## Software needed
 
-The code is written in python (2.7.x). It needs the following packages to be installed:
+The code is written in Python (ported to Python3 in March 2022). 
+
+It needs the following packages to be installed:
     
 * numpy
 * scipy
