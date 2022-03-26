@@ -37,7 +37,7 @@ from fitScalingRelation import fitScalingRelationLib as fsr
 #-------------------------------------------------------------------------------------------------------------
 # Main
 if len(sys.argv) < 2:
-    print "Run: % fitLinMixScalingRelation parFileName"
+    print("Run: % fitLinMixScalingRelation parFileName")
 else:
     
     parFileName=sys.argv[1]
@@ -73,7 +73,7 @@ else:
         elif parDict['evoModel'] == 'E(z)':
             z=np.log10(stab['E(z)'])
         else:
-            raise Exception, "didn't understand evoModel '%s'" % (evoModel)
+            raise Exception("didn't understand evoModel '%s'" % (evoModel))
     
         # I think this will fall over with 1 chain
         # Set parallelize = False if debugging
@@ -99,15 +99,15 @@ else:
         chiSq=np.sum(((y-yMod)**2)/yMod)
         fitResults['chiSq']=chiSq
     
-        print "... xPivot = %.3e ..." % (parDict['xPivot'])
-        print "... yPivot = %.3e ..." % (parDict['yPivot'])
+        print("... xPivot = %.3e ..." % (parDict['xPivot']))
+        print("... yPivot = %.3e ..." % (parDict['yPivot']))
         
         variables=['A', 'B', 'C', 'S']
         for v in parDict['variables']:
-            print "... %s = %.3f +/- %.3f" % (v, fitResults['%s' % (v)], fitResults['%sErr' % (v)])
+            print("... %s = %.3f +/- %.3f" % (v, fitResults['%s' % (v)], fitResults['%sErr' % (v)]))
 
-        if 'chiSq' in fitResults.keys():
-            print "... chi-sq = %.3f ..." % (fitResults['chiSq'])
+        if 'chiSq' in list(fitResults.keys()):
+            print("... chi-sq = %.3f ..." % (fitResults['chiSq']))
             
         #print "... zStatistic (< 2 for all parameters indicates chains converged) = ", fitResults['zStatistic']
         #if 'AIC' in fitResults.keys():
@@ -118,7 +118,7 @@ else:
         sample['stab']=stab
         
         # Output parameters to a .txt file
-        outFile=file(outDir+os.path.sep+"results.txt", "w")
+        outFile=open(outDir+os.path.sep+"results.txt", "w")
         outFile.write("N = %d\n" % (len(stab)))
         outFile.write("xPivot = %.3e\n" % (parDict['xPivot']))
         outFile.write("yPivot = %.3e\n" % (parDict['yPivot']))
@@ -126,7 +126,7 @@ else:
             outFile.write("%s = %.3f\n" % (v, fitResults['%s' % (v)]))
             outFile.write("%sErr = %.3f\n" % (v, fitResults['%sErr' % (v)]))
         #outFile.write("zStatistic = %.3f\n" % (fitResults['zStatistic']))
-        if 'AIC' in fitResults.keys():
+        if 'AIC' in list(fitResults.keys()):
             outFile.write("AIC = %.3f\n" % (fitResults['AIC']))
             outFile.write("AICc = %.3f\n" % (fitResults['AICc']))
         outFile.close()

@@ -32,7 +32,7 @@ from fitScalingRelation import fitScalingRelationLib as fsr
 #-------------------------------------------------------------------------------------------------------------
 # Main
 if len(sys.argv) < 2:
-    print "Run: % fitScalingRelation parFileName"
+    print("Run: % fitScalingRelation parFileName")
 else:
     
     parFileName=sys.argv[1]
@@ -56,7 +56,7 @@ else:
     # Fits and plots for each subsample
     for sample in sampleDefs:
                     
-        print ">>> Fitting sample %s ..." % (sample['label'])
+        print(">>> Fitting sample %s ..." % (sample['label']))
         
         # Now saving all plots for a given sample under a subdir
         outDir=rootOutDir+os.path.sep+sample['label']
@@ -65,13 +65,13 @@ else:
         
         # Get table we can fit
         stab=fsr.sampleGetter(parDict, sample, outDir)
-        print "... number of objects in sample = %d" % (len(stab))
+        print("... number of objects in sample = %d" % (len(stab)))
                 
         # Makes fits
         pickleFileName=outDir+os.path.sep+"fitResults_"+sample['label']+".pickled"
         if os.path.exists(pickleFileName) == False or refit == True:
             fitResults=fsr.MCMCFit(parDict, stab)
-            pickleFile=file(pickleFileName, "w")
+            pickleFile=open(pickleFileName, "wb")
             pickler=pickle.Pickler(pickleFile)
             pickler.dump(fitResults)
         else:
@@ -81,27 +81,27 @@ else:
             elif method == 'bisector':
                 variables=['A', 'B', 'C', 'Sx', 'Sy']
             parDict['variables']=variables
-            pickleFile=file(pickleFileName, "r")
+            pickleFile=open(pickleFileName, "rb")
             unpickler=pickle.Unpickler(pickleFile)
             fitResults=unpickler.load()
         
-        print "... xPivot = %.3e ..." % (parDict['xPivot'])
-        print "... yPivot = %.3e ..." % (parDict['yPivot'])
+        print("... xPivot = %.3e ..." % (parDict['xPivot']))
+        print("... yPivot = %.3e ..." % (parDict['yPivot']))
         
         if parDict['method'] == 'orthogonal':
             variables=['A', 'B', 'C', 'S', 's']
         elif parDict['method'] == 'bisector':
             variables=['A', 'B', 'C', 'Sx', 'Sy']
         for v in variables:
-            print "... %s = %.3f +/- %.3f" % (v, fitResults['%s' % (v)], fitResults['%sErr' % (v)])
+            print("... %s = %.3f +/- %.3f" % (v, fitResults['%s' % (v)], fitResults['%sErr' % (v)]))
 
-        print "... zStatistic (< 2 for all parameters indicates chains converged) = ", fitResults['zStatistic']
-        if 'AIC' in fitResults.keys():
-            print "... AIC = %.3f ..." % (fitResults['AIC'])
-            print "... AICc = %.3f ..." % (fitResults['AICc'])
+        print("... zStatistic (< 2 for all parameters indicates chains converged) = ", fitResults['zStatistic'])
+        if 'AIC' in list(fitResults.keys()):
+            print("... AIC = %.3f ..." % (fitResults['AIC']))
+            print("... AICc = %.3f ..." % (fitResults['AICc']))
         
-        if 'chiSq' in fitResults.keys():
-            print "... chi-sq = %.3f ..." % (fitResults['chiSq'])
+        if 'chiSq' in list(fitResults.keys()):
+            print("... chi-sq = %.3f ..." % (fitResults['chiSq']))
         
         sample['fitResults']=fitResults # handy for making side by side L-T plot (e.g. z evo in bins)
         sample['stab']=stab
@@ -136,7 +136,7 @@ else:
                 fsr.makePaperContourPlots(fitResults, parDict, outDir)
                 
         # Output parameters to a .txt file
-        outFile=file(outDir+os.path.sep+"results.txt", "w")
+        outFile=open(outDir+os.path.sep+"results.txt", "w")
         outFile.write("N = %d\n" % (len(stab)))
         outFile.write("xPivot = %.3e\n" % (parDict['xPivot']))
         outFile.write("yPivot = %.3e\n" % (parDict['yPivot']))
@@ -148,7 +148,7 @@ else:
             outFile.write("%s = %.3f\n" % (v, fitResults['%s' % (v)]))
             outFile.write("%sErr = %.3f\n" % (v, fitResults['%sErr' % (v)]))
         #outFile.write("zStatistic = %.3f\n" % (fitResults['zStatistic']))
-        if 'AIC' in fitResults.keys():
+        if 'AIC' in list(fitResults.keys()):
             outFile.write("AIC = %.3f\n" % (fitResults['AIC']))
             outFile.write("AICc = %.3f\n" % (fitResults['AICc']))
         outFile.close()
