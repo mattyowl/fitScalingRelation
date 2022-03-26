@@ -872,7 +872,6 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
     if shadeByDetP == True:
         for row, pY in zip(sampleTab, yPlot):
             plt.plot(row[xColumnName], [pY], 'D', color = (row['detP'], row['detP'], row['detP'])) 
-
         
     plotRange=np.linspace(settingsDict['xPlotMin'], settingsDict['xPlotMax'], 100)
     if xTakeLog10 == True and yTakeLog10 == True:
@@ -882,18 +881,22 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
     else:
         raise Exception("add semilogx, semilogy fit line code")
     
-    if xPivot != 1.0:
-        fitLabel='%s (%s) = 10$^{%.2f \pm %.2f}$ (%s/%.1f %s)$^{%.2f \pm %.2f}$' % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'], fitResults['A'], fitResults['AErr'], settingsDict['xPlotLabel'], xPivot, settingsDict['xPlotLabelUnits'], fitResults['B'], fitResults['BErr'])
+    if settingsDict['yPivot'] != 1.0:
+        yPivotStr="("+np.format_float_scientific(settingsDict['yPivot'])+") $\\times$ "
     else:
-        fitLabel='%s (%s) = 10$^{%.2f \pm %.2f}$ (%s)$^{%.2f \pm %.2f}$' % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'], fitResults['A'], fitResults['AErr'], settingsDict['xPlotLabel'], fitResults['B'], fitResults['BErr'])
-        
+        yPivotStr=""
+    if xPivot != 1.0:
+        fitLabel='%s (%s) = %s10$^{%.3f \pm %.3f}$ (%s/%.1f %s)$^{%.3f \pm %.3f}$' % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'], yPivotStr, fitResults['A'], fitResults['AErr'], settingsDict['xPlotLabel'], xPivot, settingsDict['xPlotLabelUnits'], fitResults['B'], fitResults['BErr'])
+    else:
+        fitLabel='%s (%s) = %s10$^{%.3f \pm %.3f}$ (%s)$^{%.3f \pm %.3f}$' % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'], yPivotStr, fitResults['A'], fitResults['AErr'], settingsDict['xPlotLabel'], fitResults['B'], fitResults['BErr'])
+
     yLabel="%s (%s)" % (settingsDict['yPlotLabel'], settingsDict['yPlotLabelUnits'])
 
     if settingsDict['yScaleFactor'] == "E(z)":
         fitLabel="$E^{%d}(z)$ " % (settingsDict['yScaleFactorPower'])+fitLabel
         yLabel="$E^{%d}(z)$ " % (settingsDict['yScaleFactorPower'])+yLabel
 
-    plt.plot(plotRange, yFit, 'b--', label = fitLabel) 
+    plt.plot(plotRange, yFit, 'b--', label = fitLabel)
 
     ## Below is just diagnostic
     #if sampleLabel == 'REXCESS':
@@ -910,7 +913,7 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
     plt.ylim(settingsDict['yPlotMin'], settingsDict['yPlotMax'])
     
     if settingsDict['showPlotLegend'] == True:
-        leg=plt.legend(loc = 'upper left', prop = {'size': 16}, scatterpoints = 1, numpoints = 1)
+        leg=plt.legend(loc = 'upper left', prop = {'size': 15}, scatterpoints = 1, numpoints = 1)
         leg.draw_frame(False)
         plt.draw()
             
