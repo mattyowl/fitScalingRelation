@@ -39,6 +39,9 @@ import time
 import pickle
 import matplotlib
 import IPython
+from . import plotSettings
+plotSettings.update_rcParams()
+
 np.random.seed()
 plt.matplotlib.interactive(False)
 
@@ -620,7 +623,7 @@ def make1DProbDensityPlots(fitResults, settingsDict, outDir):
         if settingsDict['%sFit' % (v)] == 'free':
             cols=cols+1
     plt.figure(figsize=(4.5*cols, 3.94))
-    plt.subplots_adjust(0.02, 0.12, 0.98, 0.92, 0.1, 0.1)
+    plt.subplots_adjust(0.02, 0.16, 0.98, 0.88, 0.1, 0.1)
     count=0
     for v, a in zip(variables, axes):
         if settingsDict['%sFit' % (v)] == 'free':
@@ -635,12 +638,12 @@ def make1DProbDensityPlots(fitResults, settingsDict, outDir):
             fitLabel='%s = %.3f $\pm$ %.3f' % (v, fitResults['%s' % (v)], fitResults['%sErr' % (v)])
             xLabel='%s' % (v)
             plt.plot(x, y, 'k-', label = fitLabel)
-            plt.xlabel(xLabel, fontdict = {'size': 14})
+            plt.xlabel(xLabel)
             plt.ylabel("")
             plt.yticks([], [])
             ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(6))
             plt.ylim(0, 1.2)
-            leg=plt.legend(prop = {'size': 12})
+            leg=plt.legend(loc = 'upper right')
             leg.draw_frame(False)
             plt.draw()
     
@@ -838,8 +841,8 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
     yScaleFactorPower=settingsDict['yScaleFactorPower']
     
     # The plot
-    plt.figure(figsize=(10, 10))
-    plt.axes([0.1, 0.1, 0.85, 0.85])
+    plt.figure(figsize=(10, 8))
+    plt.axes([0.12, 0.1, 0.83, 0.85])
     
     if yScaleFactor != None:
         yPlot=np.power(sampleTab['E(z)'], yScaleFactorPower)*sampleTab[yColumnName]
@@ -907,8 +910,8 @@ def makeScalingRelationPlot(sampleTab, fitResults, outDir, sampleDict, settingsD
         #plt.plot(plotRange, prattLX, 'r:', label = prattLabel)
         #sample['plotLabel']=""
         
-    plt.ylabel(yLabel, size = 16)
-    plt.xlabel("%s (%s)" % (settingsDict['xPlotLabel'], settingsDict['xPlotLabelUnits']), size = 16)
+    plt.ylabel(yLabel)
+    plt.xlabel("%s (%s)" % (settingsDict['xPlotLabel'], settingsDict['xPlotLabelUnits']))
     plt.xlim(settingsDict['xPlotMin'], settingsDict['xPlotMax'])
     plt.ylim(settingsDict['yPlotMin'], settingsDict['yPlotMax'])
     
@@ -1036,8 +1039,8 @@ def makeScalingRelationPlot_ABC(sampleTab, fitResults, outDir, sampleDict, setti
 
     plt.loglog()
 
-    plt.ylabel(yLabel, size = 16)
-    plt.xlabel("%s (%s)" % (settingsDict['xPlotLabel'], settingsDict['xPlotLabelUnits']), size = 16)
+    plt.ylabel(yLabel)
+    plt.xlabel("%s (%s)" % (settingsDict['xPlotLabel'], settingsDict['xPlotLabelUnits']))
     plt.xlim(settingsDict['xPlotMin'], settingsDict['xPlotMax'])
     plt.ylim(settingsDict['yPlotMin'], settingsDict['yPlotMax'])
         
@@ -1361,7 +1364,7 @@ def probPlot1D_subPlot(par1Values, par1Label, par1TickStep, mlPar1, mlPar1Err, P
     plt.yticks([], [])
     #ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(6))
     plt.ylim(0, 1.2)
-    leg=plt.legend(loc = (0.0, 0.86), prop = {'size': 12})
+    leg=plt.legend(loc = (0.0, 0.86))
     leg.draw_frame(False)
     plt.draw()            
     plt.xlabel(par1Label)
